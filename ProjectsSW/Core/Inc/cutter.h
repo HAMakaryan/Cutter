@@ -2,14 +2,16 @@
  * cutter.h
  *
  *  Created on: May 19, 2020
- *      Author: hrachm
+ *      Author: AnnaV
  */
 
 #ifndef INC_CUTTER_H_
 #define INC_CUTTER_H_
 
+#include "stm32f7xx_hal.h"
+
 void LCD_Init(void);
-void LCD_Write(uint8_t* string, uint8_t row, uint8_t col);
+void LCD_Write(uint8_t* string, uint8_t row, uint8_t col, uint8_t length);
 void Keypad_Init(void);
 void Save_Coord(uint32_t address, float coord);
 void Set_Inverter(uint8_t dir, uint16_t speed);
