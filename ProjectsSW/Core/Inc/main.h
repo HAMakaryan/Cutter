@@ -124,8 +124,8 @@ void Error_Handler(void);
 #define STLK_TX_GPIO_Port GPIOD
 #define Row3_Pin GPIO_PIN_10
 #define Row3_GPIO_Port GPIOD
-#define En_Dis_Cut_Buttons_Pin GPIO_PIN_11
-#define En_Dis_Cut_Buttons_GPIO_Port GPIOD
+#define Pedal_Out_Pin GPIO_PIN_11
+#define Pedal_Out_GPIO_Port GPIOD
 #define Encoder_A_Pin GPIO_PIN_12
 #define Encoder_A_GPIO_Port GPIOD
 #define Encoder_B_Pin GPIO_PIN_13

@@ -1,6 +1,6 @@
 Configuration	Cutter
 STM32CubeMX 	5.6.1
-Date	05/18/2020
+Date	05/19/2020
 MCU	STM32F767ZITx
 
 
@@ -80,9 +80,9 @@ Pin Nb	PINs	FUNCTIONs	LABELs
 59	PE8	GPIO_Output	Press_Again [To press the paper]
 60	PE9	GPIO_Input	Hand_Catch [Hand catch detection pin]
 65	PE12	GPIO_Output	Brush_Back [To move the brush back]
-66	PE13	GPIO_Output	Cutting [Enable/Disable cutting]
+66	PE13	GPIO_Output	Cutting [On/Off cutting]
 67	PE14	GPIO_Output	Brush_Forward [To move the bursh forward]
-68	PE15	GPIO_Output	Brush_Brake [Enable/Disable the brake of brush]
+68	PE15	GPIO_Output	Brush_Brake [On/Off the brake of brush]
 69	PB10	GPIO_Output	DB0 [Test pin 0]
 70	PB11	GPIO_Output	Relay_4 [For future use]
 73	PB12	UART5_RX	
@@ -92,7 +92,7 @@ Pin Nb	PINs	FUNCTIONs	LABELs
 77	PD8	USART3_TX	STLK_RX [STM32F103CBT6_PA3]
 78	PD9	USART3_RX	STLK_TX [STM32F103CBT6_PA2]
 79	PD10	GPIO_Input	Row3 [Keypad row 3]
-80	PD11	GPIO_Output	En_Dis_Cut_Buttons [Enable/Disable cutting buttons]
+80	PD11	GPIO_Output	Pedal_Out [To turn on/off solid3&4 contacts]
 81	PD12	TIM4_CH1	Encoder_A
 82	PD13	TIM4_CH2	Encoder_B
 85	PD14	GPIO_Input	Knife_Sensor2 [To detect knife's position]
@@ -199,9 +199,9 @@ Pin Nb	PINs	FUNCTIONs	LABELs
 59	PE8	GPIO_Output	Press_Again [To press the paper]
 60	PE9	GPIO_Input	Hand_Catch [Hand catch detection pin]
 65	PE12	GPIO_Output	Brush_Back [To move the brush back]
-66	PE13	GPIO_Output	Cutting [Enable/Disable cutting]
+66	PE13	GPIO_Output	Cutting [On/Off cutting]
 67	PE14	GPIO_Output	Brush_Forward [To move the bursh forward]
-68	PE15	GPIO_Output	Brush_Brake [Enable/Disable the brake of brush]
+68	PE15	GPIO_Output	Brush_Brake [On/Off the brake of brush]
 69	PB10	GPIO_Output	DB0 [Test pin 0]
 70	PB11	GPIO_Output	Relay_4 [For future use]
 73	PB12	UART5_RX	
@@ -211,7 +211,7 @@ Pin Nb	PINs	FUNCTIONs	LABELs
 77	PD8	USART3_TX	STLK_RX [STM32F103CBT6_PA3]
 78	PD9	USART3_RX	STLK_TX [STM32F103CBT6_PA2]
 79	PD10	GPIO_Input	Row3 [Keypad row 3]
-80	PD11	GPIO_Output	En_Dis_Cut_Buttons [Enable/Disable cutting buttons]
+80	PD11	GPIO_Output	Pedal_Out [To turn on/off solid3&4 contacts]
 81	PD12	TIM4_CH1	Encoder_A
 82	PD13	TIM4_CH2	Encoder_B
 85	PD14	GPIO_Input	Knife_Sensor2 [To detect knife's position]
@@ -250,7 +250,7 @@ SOFTWARE PROJECT
 
 Project Settings : 
 Project Name : Cutter
-Project Folder : W:\Cutter_WS\Cutter
+Project Folder : W:\Cutter_WS\git_project\Cutter\ProjectsSW
 Toolchain / IDE : STM32CubeIDE
 Firmware Package Name and Version : STM32Cube FW_F7 V1.16.0
 
