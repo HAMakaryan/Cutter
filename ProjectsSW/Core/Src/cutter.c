@@ -7,7 +7,8 @@
 
 #include "stm32f7xx_hal.h"
 #include <stdint.h>
-
+#include "main.h"
+#include "cutter.h"
 
 /**
   * @brief	Initializes the LCD(16x4) module using I2C peripheral.
@@ -47,13 +48,160 @@ void LCD_Write(uint8_t* string, uint8_t length, uint8_t row, uint8_t col)
   */
 void Keypad_Init()
 {
+	//set all rows and columns
+	HAL_GPIO_WritePin(GPIOF, Row0_Pin|Row1_Pin|Col0_Pin|Col1_Pin, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(GPIOG, Row2_Pin|Col3_Pin, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(GPIOD, Row3_Pin, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(GPIOE, Col2_Pin, GPIO_PIN_SET);
+}
 
+/**
+  * @brief	Sets all columns as output.
+  * @param	None
+  * @retval None
+  */
+void Set_Columns_Output()
+{
+	GPIOF->MODER |= GPIO_MODER_MODER11_0 | GPIO_MODER_MODER15_0;
+	GPIOE->MODER |= GPIO_MODER_MODER0_0;
+	GPIOG->MODER |= GPIO_MODER_MODER8_0;
+}
+
+/**
+  * @brief	Sets all columns as input.
+  * @param	None
+  * @retval None
+  */
+void Set_Columns_Input()
+{
+	GPIOF->MODER &= ~(GPIO_MODER_MODER11_0 | GPIO_MODER_MODER15_0);
+	GPIOE->MODER &= ~(GPIO_MODER_MODER0_0);
+	GPIOG->MODER &= ~(GPIO_MODER_MODER8_0);
+}
+
+/**
+  * @brief	Sets all rows as output.
+  * @param	None
+  * @retval None
+  */
+void Set_Row_Output()
+{
+	GPIOF->MODER |= GPIO_MODER_MODER12_0 | GPIO_MODER_MODER13_0;
+	GPIOG->MODER |= GPIO_MODER_MODER14_0;
+	GPIOD->MODER |= GPIO_MODER_MODER10_0;
+}
+
+/**
+  * @brief	Sets all rows as input.
+  * @param	None
+  * @retval None
+  */
+void Set_Rows_Input()
+{
+	GPIOF->MODER &= ~(GPIO_MODER_MODER12_0 | GPIO_MODER_MODER13_0);
+	GPIOG->MODER &= ~(GPIO_MODER_MODER14_0);
+	GPIOG->MODER &= ~(GPIO_MODER_MODER10_0);
+}
+
+
+uint8_t ms = 0;
+uint8_t row_counter_1[ROW_SIZE];
+uint8_t row_counter_0[ROW_SIZE];
+uint8_t col_counter_1[COL_SIZE];
+uint8_t col_counter_0[COL_SIZE];
+
+uint8_t pos[ROW_SIZE] = {1, 2, 4, 8};
+uint8_t row_key = 0;
+uint8_t col_key = 0;
+uint8_t key_count = 0;
+uint8_t row_pressed[ROW_SIZE];
+uint8_t col_pressed[COL_SIZE];
+
+uint8_t pressed_key = 0;
+
+GPIO_TypeDef* row_gpio_port[ROW_SIZE] = {Row0_GPIO_Port, Row1_GPIO_Port,
+										Row2_GPIO_Port, Row3_GPIO_Port};
+GPIO_TypeDef* col_gpio_port[COL_SIZE] = {Col0_GPIO_Port, Col1_GPIO_Port,
+										Col2_GPIO_Port, Col3_GPIO_Port};
+uint16_t row_gpio_pin[ROW_SIZE] = {Row0_Pin, Row1_Pin, Row2_Pin, Row3_Pin};
+uint16_t col_gpio_pin[COL_SIZE] = {Col0_Pin, Col1_Pin, Col2_Pin, Col3_Pin};
+
+void Read_Columns()
+{
+	//reads columns
+	for (uint8_t i = 0; i < COL_SIZE; ++i)
+	{
+		//if pressed
+		if (HAL_GPIO_ReadPin(col_gpio_port[i], col_gpio_pin[i]))
+		{
+			col_counter_1[i]++;
+			col_counter_0[i] = 0;
+
+			if (col_counter_1[i] >= DEBOUNCE_TIME)
+			{
+				col_counter_1[i] = DEBOUNCE_TIME + 1;
+				col_pressed[i] = 1;
+			}
+		//if not pressed
+		} else
+		{
+			col_counter_0[i]++;
+			col_counter_1[i] = 0;
+
+			if (col_counter_0[i] >= DEBOUNCE_TIME)
+			{
+				col_counter_0[i] = DEBOUNCE_TIME + 1;
+
+				if (col_pressed[i] == 1)
+				{
+					col_pressed[i] = 0;
+					col_key |=  pos[i];
+				}
+			}
+		}
+	}
+}
+
+void Read_Rows()
+{
+	//reads rows
+	for (uint8_t i = 0; i < ROW_SIZE; ++i)
+	{
+		//if pressed
+		if (HAL_GPIO_ReadPin(row_gpio_port[i], row_gpio_pin[i]))
+		{
+			row_counter_1[i]++;
+			row_counter_0[i] = 0;
+
+			if (row_counter_1[i] >= DEBOUNCE_TIME)
+			{
+				row_counter_1[i] = DEBOUNCE_TIME + 1;
+				row_pressed[i] = 1;
+			}
+		//if not pressed
+		} else
+		{
+			row_counter_0[i]++;
+			row_counter_1[i] = 0;
+
+			if (row_counter_0[i] >= DEBOUNCE_TIME)
+			{
+				row_counter_0[i] = DEBOUNCE_TIME + 1;
+
+				if (row_pressed[i] == 1)
+				{
+					row_pressed[i] = 0;
+					row_key |=  pos[i];
+				}
+			}
+		}
+	}
 }
 
 /**
   * @brief	Reads keypad data.
   * @param	None
-  * @retval Can be 0-15 (pressed key code) or NO_PRESSED.
+  * @retval return key char or 0(no pressed)
   */
 uint8_t Read_Keypad()
 {
@@ -61,7 +209,89 @@ uint8_t Read_Keypad()
 	 * If any button is pressed this function returns the key code
 	 * If none of the buttons is pressed returns NO_PRESSED
 	 * */
-	return 0;
+	//if 10 ms is passed
+	if (ms == 10)
+	{
+		ms = 0;
+
+		Set_Row_Output();
+		Set_Columns_Input();
+		Read_Columns();
+
+		Set_Columns_Output();
+		Set_Rows_Input();
+		Read_Rows();
+
+
+		//if pressed 2 buttons reset row value
+		if ((row_key != 1) && (row_key != 2) && (row_key != 4)
+												&& (row_key != 8))
+		{
+			row_key = 0;
+		}
+
+		//if pressed 2 buttons reset columns value
+		if ((col_key != 1) && (col_key != 2) && (col_key != 4)
+												&& (col_key != 8))
+		{
+			col_key = 0;
+		}
+
+		//if pressed a button
+		if (row_key != 0 && col_key != 0)
+		{
+			pressed_key = (row_key << 4) & (col_key & 0x0F);
+			row_key = 0;
+			col_key = 0;
+			key_count++;
+			if (key_count == 10)
+			{
+				key_count = 0;
+			}
+		}
+	}
+	return Convert_Key_to_Char(pressed_key);
+}
+
+uint8_t Convert_Key_to_Char(uint8_t key)
+{
+	switch(pressed_key)
+	{
+		case 0x11:
+			return '1';
+		case 0x12:
+			return '2';
+		case 0x14:
+			return '3';
+		case 0x18:
+			return 'A';
+		case 0x21:
+			return '4';
+		case 0x22:
+			return '5';
+		case 0x24:
+			return '6';
+		case 0x28:
+			return 'B';
+		case 0x41:
+			return '7';
+		case 0x42:
+			return '8';
+		case 0x44:
+			return '9';
+		case 0x48:
+			return 'C';
+		case 0x81:
+			return '*';
+		case 0x82:
+			return '0';
+		case 0x84:
+			return '9';
+		case 0x88:
+			return '#';
+		default:
+			return 0;
+	}
 }
 
 /**
@@ -84,7 +314,7 @@ void Save_Coord(uint32_t address, float coord)
   * @param	Address of the backup register
   * @retval The real coordinate of the brush
   */
-float Read_Coord(uint32_t address)
+uint32_t Read_Coord(uint32_t address)
 {
 	/* Reads real coordinate of the brush */
 	return 0;

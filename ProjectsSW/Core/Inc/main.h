@@ -170,6 +170,8 @@ void Error_Handler(void);
 #define DB2_GPIO_Port GPIOB
 #define LD2_Pin GPIO_PIN_7
 #define LD2_GPIO_Port GPIOB
+#define Col2_Pin GPIO_PIN_0
+#define Col2_GPIO_Port GPIOE
 /* USER CODE BEGIN Private defines */
 
 /* USER CODE END Private defines */

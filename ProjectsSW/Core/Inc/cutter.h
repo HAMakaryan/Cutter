@@ -10,6 +10,10 @@
 
 #include "stm32f7xx_hal.h"
 
+#define ROW_SIZE		4
+#define COL_SIZE		4
+#define DEBOUNCE_TIME	5	//50ms
+
 void LCD_Init(void);
 void LCD_Write(uint8_t* string, uint8_t row, uint8_t col, uint8_t length);
 void Keypad_Init(void);
@@ -30,9 +34,9 @@ uint8_t Read_Keypad(void);
 uint8_t Read_Pedal(void);
 uint8_t Read_Knife_Sensors(void);
 uint8_t Read_Hand_Catch_Input(void);
-
+uint8_t Convert_Key_to_Char(uint8_t key);
 uint16_t Read_Encoder(void);
 
-float Read_Coord(void);
+uint32_t Read_Coord(uint32_t address);
 
 #endif /* INC_CUTTER_H_ */
