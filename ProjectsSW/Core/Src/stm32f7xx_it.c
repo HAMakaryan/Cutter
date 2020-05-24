@@ -58,7 +58,8 @@
 /* External variables --------------------------------------------------------*/
 
 /* USER CODE BEGIN EV */
-extern uint8_t ms;
+extern uint8_t keypad_timeout;
+extern uint8_t lcd_timeout;
 /* USER CODE END EV */
 
 /******************************************************************************/
@@ -186,9 +187,14 @@ void SysTick_Handler(void)
   /* USER CODE END SysTick_IRQn 0 */
   HAL_IncTick();
   /* USER CODE BEGIN SysTick_IRQn 1 */
-  if (ms < 10)
+  if (lcd_timeout < 1)
   {
-	  ms++;
+	  lcd_timeout++;
+  }
+
+  if (keypad_timeout < 10)
+  {
+	  keypad_timeout++;
   }
 
   /* USER CODE END SysTick_IRQn 1 */

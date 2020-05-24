@@ -10,12 +10,20 @@
 
 #include "stm32f7xx_hal.h"
 
+#define SIZE			16
+#define LCD_ADDR		(0x27 << 1)
+#define LCD_DELAY_MS	5
+
+#define PIN_RS    (1 << 0)
+#define PIN_EN    (1 << 2)
+#define BACKLIGHT (1 << 3)
+
 #define ROW_SIZE		4
 #define COL_SIZE		4
 #define DEBOUNCE_TIME	5	//50ms
 
-void LCD_Init(void);
-void LCD_Write(uint8_t* string, uint8_t row, uint8_t col, uint8_t length);
+void LCD_Init(uint8_t lcd_addr);
+void LCD_Write(uint8_t lcd_addr);
 void Keypad_Init(void);
 void Save_Coord(uint32_t address, float coord);
 void Set_Inverter(uint8_t dir, uint16_t speed);
