@@ -12,9 +12,9 @@
 
 I2C_HandleTypeDef hi2c1;
 uint8_t lcd_ring_buffer[SIZE];
-uint8_t buffer_length = 0;
-uint8_t write_pointer = 0;
-uint8_t read_pointer = 0;
+uint8_t lcd_buf_length = 0;
+uint8_t lcd_write_pnt = 0;
+uint8_t lcd_read_pnt = 0;
 uint8_t lcd_timeout = 0;
 
 /**
@@ -105,9 +105,9 @@ void LCD_Init(uint8_t lcd_addr)
   * @param	None
   * @retval	0/1
   */
-uint8_t Full()
+uint8_t Full(uint8_t buff_size)
 {
-  if (buffer_length == SIZE)
+  if (buff_size == SIZE)
   {
     return 1;
   } else {
@@ -120,9 +120,9 @@ uint8_t Full()
   * @param	None
   * @retval	0/1
   */
-uint8_t Empty()
+uint8_t Empty(uint8_t buff_size)
 {
-  if (buffer_length == 0)
+  if (buff_size == 0)
   {
     return 1;
   } else {
@@ -140,14 +140,14 @@ void LCD_Write_Buffer(uint8_t *data, uint8_t size)
 {
 	for (int i = 0; i < size; ++i)
 	{
-	  if (!Full())
+	  if (!Full(lcd_buf_length))
 	  {
-		  lcd_ring_buffer[write_pointer] = data[i];
-		  write_pointer++;
-		  buffer_length++;
-		  if (write_pointer == SIZE)
+		  lcd_ring_buffer[lcd_write_pnt] = data[i];
+		  lcd_write_pnt++;
+		  lcd_buf_length++;
+		  if (lcd_write_pnt == SIZE)
 		  {
-			write_pointer = 0;
+			  lcd_write_pnt = 0;
 		  }
 	  }
 	}
@@ -161,14 +161,14 @@ void LCD_Write_Buffer(uint8_t *data, uint8_t size)
   */
 uint8_t LCD_Read_Buffer()
 {
-  int data = lcd_ring_buffer[read_pointer];
+  int data = lcd_ring_buffer[lcd_read_pnt];
 
-  read_pointer++;
-  buffer_length--;
+  lcd_read_pnt++;
+  lcd_buf_length--;
 
-  if (read_pointer == SIZE)
+  if (lcd_read_pnt == SIZE)
   {
-    read_pointer = 0;
+	  lcd_read_pnt = 0;
   }
   return data;
 }
@@ -179,14 +179,15 @@ uint8_t LCD_Read_Buffer()
   */
 void LCD_Write(uint8_t lcd_addr)
 {
+	//every ms
 	if (lcd_timeout == 1)
 	{
 		lcd_timeout = 0;
 
-		if (!Empty())
+		if (!Empty(lcd_buf_length))
 		{
 			uint8_t data = LCD_Read_Buffer();
-			 uint8_t up = data & 0xF0;
+			uint8_t up = data & 0xF0;
 			uint8_t lo = (data << 4) & 0xF0;
 			uint8_t data_arr[4];
 
@@ -203,6 +204,7 @@ void LCD_Write(uint8_t lcd_addr)
 				data_arr[2] = lo||BACKLIGHT|PIN_EN;
 				data_arr[3] = lo|BACKLIGHT;
 			}
+
 			HAL_I2C_Master_Transmit(&hi2c1, lcd_addr, data_arr, sizeof(data_arr), HAL_MAX_DELAY);
 		}
 	}
@@ -218,11 +220,13 @@ uint8_t col_counter_0[COL_SIZE];
 uint8_t pos[ROW_SIZE] = {1, 2, 4, 8};
 uint8_t row_key = 0;
 uint8_t col_key = 0;
-uint8_t key_count = 0;
 uint8_t row_pressed[ROW_SIZE];
 uint8_t col_pressed[COL_SIZE];
 
-uint8_t pressed_key = 0;
+uint8_t keypad_buffer[SIZE];
+uint8_t keypad_buf_length = 0;
+uint8_t keypad_wr_pnt = 0;
+uint8_t keypad_rd_pnt = 0;
 
 GPIO_TypeDef* row_gpio_port[ROW_SIZE] = {Row0_GPIO_Port, Row1_GPIO_Port,
 										Row2_GPIO_Port, Row3_GPIO_Port};
@@ -306,7 +310,6 @@ void Read_Columns()
 
 			if (col_counter_1[i] >= DEBOUNCE_TIME)
 			{
-				col_counter_1[i] = DEBOUNCE_TIME + 1;
 				col_pressed[i] = 1;
 			}
 		//if not pressed
@@ -317,8 +320,7 @@ void Read_Columns()
 
 			if (col_counter_0[i] >= DEBOUNCE_TIME)
 			{
-				col_counter_0[i] = DEBOUNCE_TIME + 1;
-
+				//if released
 				if (col_pressed[i] == 1)
 				{
 					col_pressed[i] = 0;
@@ -342,7 +344,6 @@ void Read_Rows()
 
 			if (row_counter_1[i] >= DEBOUNCE_TIME)
 			{
-				row_counter_1[i] = DEBOUNCE_TIME + 1;
 				row_pressed[i] = 1;
 			}
 		//if not pressed
@@ -353,8 +354,7 @@ void Read_Rows()
 
 			if (row_counter_0[i] >= DEBOUNCE_TIME)
 			{
-				row_counter_0[i] = DEBOUNCE_TIME + 1;
-
+				//if released
 				if (row_pressed[i] == 1)
 				{
 					row_pressed[i] = 0;
@@ -366,18 +366,32 @@ void Read_Rows()
 }
 
 /**
+  * @brief	Writes keypad data to buffer
+  * @param	Data
+  * @retval	None
+  */
+void Keypad_Write_Buffer(uint8_t data)
+{
+	keypad_buffer[keypad_wr_pnt] = data;
+	keypad_wr_pnt++;
+	keypad_buf_length++;
+	if (keypad_wr_pnt == SIZE)
+	{
+	  keypad_wr_pnt = 0;
+	}
+}
+
+/**
   * @brief	Reads keypad data.
   * @param	None
-  * @retval return key char or 0(no pressed)
+  * @retval None)
   */
-uint8_t Read_Keypad()
+void Read_Keypad()
 {
-	/* This function scans the keypad and returns the status of button
-	 * If any button is pressed this function returns the key code
-	 * If none of the buttons is pressed returns NO_PRESSED
-	 * */
+	uint8_t pressed_key = 0;
+
 	//if 10 ms is passed
-	if (keypad_timeout == 10)
+	if (keypad_timeout == KEYPAD_TIMEOUT)
 	{
 		keypad_timeout = 0;
 
@@ -389,17 +403,16 @@ uint8_t Read_Keypad()
 		Set_Rows_Input();
 		Read_Rows();
 
-
 		//if pressed 2 buttons reset row value
-		if ((row_key != 1) && (row_key != 2) && (row_key != 4)
-												&& (row_key != 8))
+		if ((row_key != ROW1) && (row_key != ROW2) && (row_key != ROW3)
+												&& (row_key != ROW4))
 		{
 			row_key = 0;
 		}
 
 		//if pressed 2 buttons reset columns value
-		if ((col_key != 1) && (col_key != 2) && (col_key != 4)
-												&& (col_key != 8))
+		if ((col_key != COL1) && (col_key != COL2) && (col_key != COL3)
+												&& (col_key != COL4))
 		{
 			col_key = 0;
 		}
@@ -410,14 +423,15 @@ uint8_t Read_Keypad()
 			pressed_key = (row_key << 4) & (col_key & 0x0F);
 			row_key = 0;
 			col_key = 0;
-			key_count++;
-			if (key_count == 10)
+
+			if (!Full(keypad_buf_length))
 			{
-				key_count = 0;
+				uint8_t data = Convert_Key_to_Char(pressed_key);
+				Keypad_Write_Buffer(data);
 			}
 		}
 	}
-	return Convert_Key_to_Char(pressed_key);
+
 }
 
 /**
@@ -427,7 +441,7 @@ uint8_t Read_Keypad()
   */
 uint8_t Convert_Key_to_Char(uint8_t key)
 {
-	switch(pressed_key)
+	switch(key)
 	{
 		case 0x11:
 			return '1';

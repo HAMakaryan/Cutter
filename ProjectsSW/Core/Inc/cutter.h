@@ -20,7 +20,18 @@
 
 #define ROW_SIZE		4
 #define COL_SIZE		4
-#define DEBOUNCE_TIME	5	//50ms
+#define DEBOUNCE_TIME	3
+#define KEYPAD_TIMEOUT	5 //every 5 ms
+
+#define ROW1	1
+#define ROW2	2
+#define ROW3	4
+#define ROW4	8
+
+#define COL1	1
+#define COL2	2
+#define COL3	4
+#define COL4	8
 
 void LCD_Init(uint8_t lcd_addr);
 void LCD_Write(uint8_t lcd_addr);
@@ -37,8 +48,9 @@ void Pressing_On(void);
 void Pressing_Off(void);
 void Cutting_On(void);
 void Cutting_Off(void);
+void Read_Keypad(void);
+void Keypad_Write_Buffer(uint8_t data);
 
-uint8_t Read_Keypad(void);
 uint8_t Read_Pedal(void);
 uint8_t Read_Knife_Sensors(void);
 uint8_t Read_Hand_Catch_Input(void);
