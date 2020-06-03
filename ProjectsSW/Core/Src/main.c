@@ -103,10 +103,22 @@ int main(void)
   /* USER CODE BEGIN 2 */
   LCD_Init(LCD_ADDR);
   Keypad_Init();
+
+  HAL_NVIC_SetPriority(I2C1_EV_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(I2C1_EV_IRQn);
+  //LCD_SendCommand(LCD_ADDR, 0x80);
+  //LCD_SendString(LCD_ADDR, "Hello");
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  uint16_t buffer2[15] = {0x01, 0x80, 'A'|0x0100, 'r'|0x0100,
+    		  	  	  'e'|0x0100, 0x20|0x0100, 'Y'|0x0100, 'o'|0x0100, 'u'|0x0100,
+    				  0x20|0x0100, 'S'|0x0100, 'u'|0x0100, 'r'|0x0100, 'e'|0x0100,
+  				  '?'|0x0100};
+
+  LCD_Write_Buffer(buffer2, 15);
+
   while (1)
   {
 	  LCD_Write(LCD_ADDR);

@@ -7,15 +7,18 @@
 
 #include "stm32f7xx_hal.h"
 #include <stdint.h>
+#include <string.h>
 #include "main.h"
 #include "cutter.h"
 
 I2C_HandleTypeDef hi2c1;
-uint8_t lcd_ring_buffer[SIZE];
 uint8_t lcd_buf_length = 0;
 uint8_t lcd_write_pnt = 0;
 uint8_t lcd_read_pnt = 0;
 uint8_t lcd_timeout = 0;
+uint8_t completed = 1;
+uint8_t data_arr[4];
+uint16_t lcd_ring_buffer[LCD_BUF_SIZE];
 
 /**
   * @brief	Sends data to LCD with blocking mode.
@@ -90,14 +93,29 @@ void LCD_Init(uint8_t lcd_addr)
 	* Needed to declare LCD_Write_Command() function
 	  to send command to the LCD
 	  */
-	// 4-bit mode, 2 lines, 5x7 format
+	/*// 4-bit mode, 2 lines, 5x7 format
 	LCD_SendCommand(lcd_addr, 0x30); //0b00110000
 	// display & cursor home (keep this!)
 	LCD_SendCommand(lcd_addr, 0x02); //0b00000010
 	// display on, right shift, underline off, blink off
 	LCD_SendCommand(lcd_addr, 0x0C); //0b00001100
 	// clear display (optional here)
-	LCD_SendCommand(lcd_addr, 0x01);
+	LCD_SendCommand(lcd_addr, 0x01);*/
+
+	HAL_Delay(50);
+	LCD_SendCommand(lcd_addr, 0x30);
+	HAL_Delay(5);
+	LCD_SendCommand(lcd_addr, 0x30);
+	HAL_Delay(1);
+	LCD_SendCommand(lcd_addr, 0x30);
+	HAL_Delay(10);
+	LCD_SendCommand(lcd_addr, 0x20);	//4 bit mode
+	HAL_Delay(10);
+
+	LCD_SendCommand(lcd_addr, 0x28);      // configuring LCD as 2 line 5x7 matrix
+	LCD_SendCommand(lcd_addr, 0x0E);      // Display on, Cursor on
+	LCD_SendCommand(lcd_addr, 0x01);      // Clear Display Screen
+	LCD_SendCommand(lcd_addr, 0x06);      // Increment cursor, no shift
 }
 
 /**
@@ -107,7 +125,7 @@ void LCD_Init(uint8_t lcd_addr)
   */
 uint8_t Full(uint8_t buff_size)
 {
-  if (buff_size == SIZE)
+  if (buff_size == LCD_BUF_SIZE)
   {
     return 1;
   } else {
@@ -136,7 +154,7 @@ uint8_t Empty(uint8_t buff_size)
   * param 	Size of data
   * @retval	None
   */
-void LCD_Write_Buffer(uint8_t *data, uint8_t size)
+void LCD_Write_Buffer(uint16_t *data, uint8_t size)
 {
 	for (int i = 0; i < size; ++i)
 	{
@@ -145,7 +163,7 @@ void LCD_Write_Buffer(uint8_t *data, uint8_t size)
 		  lcd_ring_buffer[lcd_write_pnt] = data[i];
 		  lcd_write_pnt++;
 		  lcd_buf_length++;
-		  if (lcd_write_pnt == SIZE)
+		  if (lcd_write_pnt == LCD_BUF_SIZE)
 		  {
 			  lcd_write_pnt = 0;
 		  }
@@ -159,14 +177,14 @@ void LCD_Write_Buffer(uint8_t *data, uint8_t size)
   * param 	None
   * @retval	Data
   */
-uint8_t LCD_Read_Buffer()
+uint16_t LCD_Read_Buffer()
 {
-  int data = lcd_ring_buffer[lcd_read_pnt];
+  uint16_t data = lcd_ring_buffer[lcd_read_pnt];
 
   lcd_read_pnt++;
   lcd_buf_length--;
 
-  if (lcd_read_pnt == SIZE)
+  if (lcd_read_pnt == LCD_BUF_SIZE)
   {
 	  lcd_read_pnt = 0;
   }
@@ -180,34 +198,76 @@ uint8_t LCD_Read_Buffer()
 void LCD_Write(uint8_t lcd_addr)
 {
 	//every ms
-	if (lcd_timeout == 1)
+	if (lcd_timeout == LCD_TIMEOUT)
 	{
 		lcd_timeout = 0;
 
 		if (!Empty(lcd_buf_length))
 		{
-			uint8_t data = LCD_Read_Buffer();
+			uint16_t data = LCD_Read_Buffer();
 			uint8_t up = data & 0xF0;
 			uint8_t lo = (data << 4) & 0xF0;
-			uint8_t data_arr[4];
+			uint8_t rs = 0;
 
-			// if 0-9, *, #
-			if ((data >= 48 && data <= 57) || (data == '#') || (data = '*'))
+			rs = PIN_RS;
+
+			//if data
+			if ((data & LCD_DATA_MASK) == LCD_DATA_MASK)
 			{
-				data_arr[0] = up|PIN_RS|BACKLIGHT|PIN_EN;
-				data_arr[1] = up|PIN_RS|BACKLIGHT;
-				data_arr[2] = lo|PIN_RS|BACKLIGHT|PIN_EN;
-				data_arr[3] = lo|PIN_RS|BACKLIGHT;
+				data_arr[0] = up|rs|BACKLIGHT|PIN_EN;
+				data_arr[1] = up|rs|BACKLIGHT;
+				data_arr[2] = lo|rs|BACKLIGHT|PIN_EN;
+				data_arr[3] = lo|rs|BACKLIGHT;
+			//if command
 			} else {
-				data_arr[0] = up|BACKLIGHT|PIN_EN;
-				data_arr[1] = up|BACKLIGHT;
-				data_arr[2] = lo||BACKLIGHT|PIN_EN;
-				data_arr[3] = lo|BACKLIGHT;
+				rs = 0;
+				data_arr[0] = up|rs|BACKLIGHT|PIN_EN;
+				data_arr[1] = up|rs|BACKLIGHT;
+				data_arr[2] = lo|rs|BACKLIGHT|PIN_EN;
+				data_arr[3] = lo|rs|BACKLIGHT;
 			}
 
-			HAL_I2C_Master_Transmit(&hi2c1, lcd_addr, data_arr, sizeof(data_arr), HAL_MAX_DELAY);
+			if (completed == 1)
+			{
+				completed = 0;
+				//HAL_I2C_Master_Transmit(&hi2c1, lcd_addr, data_arr, 4, 1000);
+				HAL_I2C_Master_Transmit_IT(&hi2c1, lcd_addr, data_arr, 4);
+			}
 		}
 	}
+}
+
+/**
+  * @brief  Master Tx Transfer completed callback.
+  * @param  hi2c Pointer to a I2C_HandleTypeDef structure that contains
+  *                the configuration information for the specified I2C.
+  * @retval None
+  */
+void HAL_I2C_MasterTxCpltCallback(I2C_HandleTypeDef *hi2c)
+{
+	completed = 1;
+	/* Prevent unused argument(s) compilation warning */
+	//UNUSED(hi2c);
+
+  /* NOTE : This function should not be modified, when the callback is needed,
+            the HAL_I2C_MasterTxCpltCallback could be implemented in the user file
+   */
+}
+
+/**
+  * @brief  I2C error callback.
+  * @param  hi2c Pointer to a I2C_HandleTypeDef structure that contains
+  *                the configuration information for the specified I2C.
+  * @retval None
+  */
+void HAL_I2C_ErrorCallback(I2C_HandleTypeDef *hi2c)
+{
+  /* Prevent unused argument(s) compilation warning */
+  UNUSED(hi2c);
+
+  /* NOTE : This function should not be modified, when the callback is needed,
+            the HAL_I2C_ErrorCallback could be implemented in the user file
+   */
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -223,7 +283,7 @@ uint8_t col_key = 0;
 uint8_t row_pressed[ROW_SIZE];
 uint8_t col_pressed[COL_SIZE];
 
-uint8_t keypad_buffer[SIZE];
+uint8_t keypad_buffer[KEYPAD_BUF_SIZE];
 uint8_t keypad_buf_length = 0;
 uint8_t keypad_wr_pnt = 0;
 uint8_t keypad_rd_pnt = 0;
@@ -294,7 +354,7 @@ void Set_Rows_Input()
 {
 	GPIOF->MODER &= ~(GPIO_MODER_MODER12_0 | GPIO_MODER_MODER13_0);
 	GPIOG->MODER &= ~(GPIO_MODER_MODER14_0);
-	GPIOG->MODER &= ~(GPIO_MODER_MODER10_0);
+	GPIOD->MODER &= ~(GPIO_MODER_MODER10_0);
 }
 
 void Read_Columns()
@@ -375,7 +435,7 @@ void Keypad_Write_Buffer(uint8_t data)
 	keypad_buffer[keypad_wr_pnt] = data;
 	keypad_wr_pnt++;
 	keypad_buf_length++;
-	if (keypad_wr_pnt == SIZE)
+	if (keypad_wr_pnt == KEYPAD_BUF_SIZE)
 	{
 	  keypad_wr_pnt = 0;
 	}
@@ -390,7 +450,7 @@ void Read_Keypad()
 {
 	uint8_t pressed_key = 0;
 
-	//if 10 ms is passed
+	//if 5 ms is passed
 	if (keypad_timeout == KEYPAD_TIMEOUT)
 	{
 		keypad_timeout = 0;
