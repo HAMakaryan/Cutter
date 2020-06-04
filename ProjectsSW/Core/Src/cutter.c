@@ -11,7 +11,11 @@
 #include "main.h"
 #include "cutter.h"
 
-I2C_HandleTypeDef hi2c1;
+extern I2C_HandleTypeDef hi2c1;
+extern UART_HandleTypeDef huart3;
+extern RTC_HandleTypeDef hrtc;
+extern TIM_HandleTypeDef htim4;
+
 uint8_t lcd_buf_length = 0;
 uint8_t lcd_write_pnt = 0;
 uint8_t lcd_read_pnt = 0;
@@ -231,7 +235,17 @@ void LCD_Write(uint8_t lcd_addr)
 			{
 				completed = 0;
 				//HAL_I2C_Master_Transmit(&hi2c1, lcd_addr, data_arr, 4, 1000);
+
 				HAL_I2C_Master_Transmit_IT(&hi2c1, lcd_addr, data_arr, 4);
+
+				/*for (int i = 0; i < 4; ++i)
+				{
+					int  num = 32424;
+					char hex[10];
+
+					sprintf(hex, "%02x\n\r", data_arr[i]);
+					HAL_UART_Transmit(&huart3, hex, 10, 0xFFFF);
+				}*/
 			}
 		}
 	}
@@ -541,19 +555,61 @@ uint8_t Convert_Key_to_Char(uint8_t key)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
+int32_t encoder_value = 0;
+/**
+  * @brief  Input Capture callback in non-blocking mode
+  * @param  htim TIM IC handle
+  * @retval None
+  */
+void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
+{
+	if (htim->Instance == TIM4)
+	{
+		 if (__HAL_TIM_IS_TIM_COUNTING_DOWN(&htim4))
+		 {
+			 encoder_value--;
+		 } else {
+			 encoder_value++;
+		 }
+	}
+}
+
+/**
+  * @brief	Reads the encoder value to determine
+  * 		the real position of the brush.
+  * @param	None
+  * @retval Can be 0-65535
+  */
+uint16_t Read_Encoder()
+{
+	/* Reads encoder value */
+	return 0;
+}
+
+///////////////////////////////////////////////////////////////////////////////
 /**
   * @brief	Saves the brush coordinate to the Backup register.
   * @param	The address of the Backup register
   * @param	The value to be saved
   * @retval None
   */
-void Save_Coord(uint32_t address, float coord)
+void Save_Coord(float coord)
 {
 	/* To write to the Backup register user needs to
 	 * Unlock the Backup register to access it
 	 * Write value to the Backup Register
 	 * Lock the backup register
 	 */
+	uint16_t l_coord = coord * 10;
+
+	/*set the DBP bit the Power Control
+	Register (PWR_CR) to enable access to the Backup
+	registers and RTC.*/
+	HAL_PWR_EnableBkUpAccess();
+
+	HAL_RTCEx_BKUPWrite(&hrtc, RTC_BKP_DR1, l_coord);
+
+	HAL_PWR_DisableBkUpAccess();
 }
 
 /**
@@ -561,10 +617,13 @@ void Save_Coord(uint32_t address, float coord)
   * @param	Address of the backup register
   * @retval The real coordinate of the brush
   */
-uint32_t Read_Coord(uint32_t address)
+uint16_t Read_Coord()
 {
+
+	uint16_t data = HAL_RTCEx_BKUPRead(&hrtc, RTC_BKP_DR1);
+
 	/* Reads real coordinate of the brush */
-	return 0;
+	return data;
 }
 
 /**
@@ -720,17 +779,3 @@ uint8_t Read_Hand_Catch_Input()
 {
 	return 0;
 }
-
-/**
-  * @brief	Reads the encoder value to determine
-  * 		the real position of the brush.
-  * @param	None
-  * @retval Can be 0-65535
-  */
-uint16_t Read_Encoder()
-{
-	/* Reads encoder value */
-	return 0;
-}
-
-

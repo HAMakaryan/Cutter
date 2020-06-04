@@ -25,6 +25,7 @@
 #include "dac.h"
 #include "eth.h"
 #include "i2c.h"
+#include "rtc.h"
 #include "spi.h"
 #include "tim.h"
 #include "usart.h"
@@ -33,6 +34,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "stdio.h"
 #include "cutter.h"
 /* USER CODE END Includes */
 
@@ -83,7 +85,10 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
-
+  /*enable the power and backup interface clocks by setting the PWREN and
+   * BKPEN bits in the RCC_APB1ENR register */
+	__HAL_RCC_PWR_CLK_ENABLE();
+	//__HAL_RCC_BKP_CLK_ENABLE();
   /* USER CODE END Init */
 
   /* Configure the system clock */
@@ -98,16 +103,30 @@ int main(void)
   MX_TIM3_Init();
   MX_TIM4_Init();
   MX_UART5_Init();
+  MX_USART3_UART_Init();
   MX_I2C1_Init();
   MX_DAC_Init();
+  MX_RTC_Init();
   /* USER CODE BEGIN 2 */
-  LCD_Init(LCD_ADDR);
-  Keypad_Init();
+  //Save_Coord(300.5);
+  float real_coord = (float)Read_Coord()/10;
 
+  LCD_Init(LCD_ADDR);
+  char buf[10];
+  sprintf(buf, "%.1f", real_coord);
+  LCD_SendCommand(LCD_ADDR, 0x80);
+  LCD_SendString(LCD_ADDR, "Real  ");
+  LCD_SendString(LCD_ADDR, buf);
+
+  LCD_SendCommand(LCD_ADDR, 0xC0);
+  LCD_SendString(LCD_ADDR, "Set   ");
+  LCD_SendString(LCD_ADDR, buf);
+
+  Keypad_Init();
   HAL_NVIC_SetPriority(I2C1_EV_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(I2C1_EV_IRQn);
-  //LCD_SendCommand(LCD_ADDR, 0x80);
-  //LCD_SendString(LCD_ADDR, "Hello");
+  HAL_TIM_Encoder_Start_IT(&htim4, TIM_CHANNEL_ALL);
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -121,7 +140,7 @@ int main(void)
 
   while (1)
   {
-	  LCD_Write(LCD_ADDR);
+	  //LCD_Write(LCD_ADDR);
 	  Read_Keypad();
     /* USER CODE END WHILE */
 
@@ -149,8 +168,9 @@ void SystemClock_Config(void)
   __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
   /** Initializes the CPU, AHB and APB busses clocks 
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_LSI|RCC_OSCILLATORTYPE_HSE;
   RCC_OscInitStruct.HSEState = RCC_HSE_ON;
+  RCC_OscInitStruct.LSIState = RCC_LSI_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
   RCC_OscInitStruct.PLL.PLLM = 4;
@@ -180,8 +200,10 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
-  PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_USART3|RCC_PERIPHCLK_UART5
-                              |RCC_PERIPHCLK_I2C1|RCC_PERIPHCLK_CLK48;
+  PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_RTC|RCC_PERIPHCLK_USART3
+                              |RCC_PERIPHCLK_UART5|RCC_PERIPHCLK_I2C1
+                              |RCC_PERIPHCLK_CLK48;
+  PeriphClkInitStruct.RTCClockSelection = RCC_RTCCLKSOURCE_LSI;
   PeriphClkInitStruct.Usart3ClockSelection = RCC_USART3CLKSOURCE_PCLK1;
   PeriphClkInitStruct.Uart5ClockSelection = RCC_UART5CLKSOURCE_PCLK1;
   PeriphClkInitStruct.I2c1ClockSelection = RCC_I2C1CLKSOURCE_PCLK1;

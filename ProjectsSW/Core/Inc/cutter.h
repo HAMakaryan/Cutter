@@ -40,7 +40,7 @@
 void LCD_Init(uint8_t lcd_addr);
 void LCD_Write(uint8_t lcd_addr);
 void Keypad_Init(void);
-void Save_Coord(uint32_t address, float coord);
+void Save_Coord(float coord);
 void Set_Inverter(uint8_t dir, uint16_t speed);
 void Change_Speed(uint16_t speed);
 void Brush_Brake_Off(void);
@@ -55,13 +55,14 @@ void Cutting_Off(void);
 void Read_Keypad(void);
 void Keypad_Write_Buffer(uint8_t data);
 void LCD_Write_Buffer(uint16_t *data, uint8_t size);
+void LCD_SendCommand(uint8_t lcd_addr, uint8_t cmd);
+void LCD_SendString(uint8_t lcd_addr, char *str);
 
 uint8_t Read_Pedal(void);
 uint8_t Read_Knife_Sensors(void);
 uint8_t Read_Hand_Catch_Input(void);
 uint8_t Convert_Key_to_Char(uint8_t key);
 uint16_t Read_Encoder(void);
-
-uint32_t Read_Coord(uint32_t address);
+uint16_t Read_Coord(void);
 
 #endif /* INC_CUTTER_H_ */
