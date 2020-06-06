@@ -24,8 +24,17 @@
 #define ROW_SIZE			4
 #define COL_SIZE			4
 #define KEYPAD_BUF_SIZE		16
-#define DEBOUNCE_TIME		3
+#define DEBOUNCE_TIME		10
 #define KEYPAD_TIMEOUT		5 //every 5 ms
+
+#define IDLE	0
+#define ERROR 	1
+#define SINGLE	2
+
+#define PRESSED		1
+#define RELEASED	0
+
+#define SINGLE_KEY	1
 
 #define ROW1	1
 #define ROW2	2

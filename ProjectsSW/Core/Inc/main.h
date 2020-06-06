@@ -95,8 +95,8 @@ void Error_Handler(void);
 #define Pedal_In_GPIO_Port GPIOF
 #define Col0_Pin GPIO_PIN_15
 #define Col0_GPIO_Port GPIOF
-#define Cutting_Butons_Pin GPIO_PIN_7
-#define Cutting_Butons_GPIO_Port GPIOE
+#define Cutting_Buttons_Pin GPIO_PIN_7
+#define Cutting_Buttons_GPIO_Port GPIOE
 #define Press_Again_Pin GPIO_PIN_8
 #define Press_Again_GPIO_Port GPIOE
 #define Hand_Catch_Pin GPIO_PIN_9
@@ -107,8 +107,8 @@ void Error_Handler(void);
 #define Cutting_GPIO_Port GPIOE
 #define Brush_Forward_Pin GPIO_PIN_14
 #define Brush_Forward_GPIO_Port GPIOE
-#define Brush_Brake_Pin GPIO_PIN_15
-#define Brush_Brake_GPIO_Port GPIOE
+#define Brush_Lock_Pin GPIO_PIN_15
+#define Brush_Lock_GPIO_Port GPIOE
 #define DB0_Pin GPIO_PIN_10
 #define DB0_GPIO_Port GPIOB
 #define Relay_4_Pin GPIO_PIN_11
@@ -125,8 +125,8 @@ void Error_Handler(void);
 #define STLK_TX_GPIO_Port GPIOD
 #define Row3_Pin GPIO_PIN_10
 #define Row3_GPIO_Port GPIOD
-#define Pedal_Out_Pin GPIO_PIN_11
-#define Pedal_Out_GPIO_Port GPIOD
+#define Cutting_Buttons_Allow_Pin GPIO_PIN_11
+#define Cutting_Buttons_Allow_GPIO_Port GPIOD
 #define Encoder_A_Pin GPIO_PIN_12
 #define Encoder_A_GPIO_Port GPIOD
 #define Encoder_B_Pin GPIO_PIN_13

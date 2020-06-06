@@ -62,10 +62,10 @@ void MX_GPIO_Init(void)
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOE, Press_Again_Pin|Brush_Back_Pin|Cutting_Pin|Brush_Forward_Pin 
-                          |Brush_Brake_Pin, GPIO_PIN_RESET);
+                          |Brush_Lock_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(Pedal_Out_GPIO_Port, Pedal_Out_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(Cutting_Buttons_Allow_GPIO_Port, Cutting_Buttons_Allow_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(USB_PowerSwitchOn_GPIO_Port, USB_PowerSwitchOn_Pin, GPIO_PIN_RESET);
@@ -94,16 +94,20 @@ void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PFPin PFPin PFPin PFPin 
-                           PFPin */
-  GPIO_InitStruct.Pin = Col1_Pin|Row1_Pin|Row0_Pin|Pedal_In_Pin 
-                          |Col0_Pin;
+  /*Configure GPIO pins : PFPin PFPin PFPin PFPin */
+  GPIO_InitStruct.Pin = Col1_Pin|Row1_Pin|Row0_Pin|Col0_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
   HAL_GPIO_Init(GPIOF, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PEPin PEPin PEPin */
-  GPIO_InitStruct.Pin = Cutting_Butons_Pin|Hand_Catch_Pin|Col2_Pin;
+  /*Configure GPIO pin : PtPin */
+  GPIO_InitStruct.Pin = Pedal_In_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(Pedal_In_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : PEPin PEPin */
+  GPIO_InitStruct.Pin = Cutting_Buttons_Pin|Hand_Catch_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
@@ -111,24 +115,30 @@ void MX_GPIO_Init(void)
   /*Configure GPIO pins : PEPin PEPin PEPin PEPin 
                            PEPin */
   GPIO_InitStruct.Pin = Press_Again_Pin|Brush_Back_Pin|Cutting_Pin|Brush_Forward_Pin 
-                          |Brush_Brake_Pin;
+                          |Brush_Lock_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PDPin PDPin PDPin */
-  GPIO_InitStruct.Pin = Row3_Pin|Knife_Sensor2_Pin|Knife_Sensor1_Pin;
+  /*Configure GPIO pin : PtPin */
+  GPIO_InitStruct.Pin = Row3_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  HAL_GPIO_Init(Row3_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : PtPin */
-  GPIO_InitStruct.Pin = Pedal_Out_Pin;
+  GPIO_InitStruct.Pin = Cutting_Buttons_Allow_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(Pedal_Out_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(Cutting_Buttons_Allow_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : PDPin PDPin */
+  GPIO_InitStruct.Pin = Knife_Sensor2_Pin|Knife_Sensor1_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
 
   /*Configure GPIO pin : PtPin */
   GPIO_InitStruct.Pin = USB_PowerSwitchOn_Pin;
@@ -137,11 +147,23 @@ void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(USB_PowerSwitchOn_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PGPin PGPin PGPin */
-  GPIO_InitStruct.Pin = USB_OverCurrent_Pin|Col3_Pin|Row2_Pin;
+  /*Configure GPIO pin : PtPin */
+  GPIO_InitStruct.Pin = USB_OverCurrent_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(USB_OverCurrent_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : PGPin PGPin */
+  GPIO_InitStruct.Pin = Col3_Pin|Row2_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
   HAL_GPIO_Init(GPIOG, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : PtPin */
+  GPIO_InitStruct.Pin = Col2_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  HAL_GPIO_Init(Col2_GPIO_Port, &GPIO_InitStruct);
 
 }
 

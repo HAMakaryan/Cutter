@@ -122,6 +122,12 @@ int main(void)
   LCD_SendString(LCD_ADDR, "Set   ");
   LCD_SendString(LCD_ADDR, buf);
 
+  LCD_SendCommand(LCD_ADDR, 0x94);
+  LCD_SendString(LCD_ADDR, "Are you sure?   ");
+  LCD_SendCommand(LCD_ADDR, 0xD4);
+  LCD_SendString(LCD_ADDR, "Yes");
+
+
   Keypad_Init();
   HAL_NVIC_SetPriority(I2C1_EV_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(I2C1_EV_IRQn);

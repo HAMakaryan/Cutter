@@ -113,7 +113,7 @@ void LCD_Init(uint8_t lcd_addr)
 	HAL_Delay(1);
 	LCD_SendCommand(lcd_addr, 0x30);
 	HAL_Delay(10);
-	LCD_SendCommand(lcd_addr, 0x20);	//4 bit mode
+	LCD_SendCommand(lcd_addr, 0x02);	//4 bit mode
 	HAL_Delay(10);
 
 	LCD_SendCommand(lcd_addr, 0x28);      // configuring LCD as 2 line 5x7 matrix
@@ -286,17 +286,7 @@ void HAL_I2C_ErrorCallback(I2C_HandleTypeDef *hi2c)
 
 ///////////////////////////////////////////////////////////////////////////////
 uint8_t keypad_timeout = 0;
-uint8_t row_counter_1[ROW_SIZE];
-uint8_t row_counter_0[ROW_SIZE];
-uint8_t col_counter_1[COL_SIZE];
-uint8_t col_counter_0[COL_SIZE];
-
 uint8_t pos[ROW_SIZE] = {1, 2, 4, 8};
-uint8_t row_key = 0;
-uint8_t col_key = 0;
-uint8_t row_pressed[ROW_SIZE];
-uint8_t col_pressed[COL_SIZE];
-
 uint8_t keypad_buffer[KEYPAD_BUF_SIZE];
 uint8_t keypad_buf_length = 0;
 uint8_t keypad_wr_pnt = 0;
@@ -309,6 +299,12 @@ GPIO_TypeDef* col_gpio_port[COL_SIZE] = {Col0_GPIO_Port, Col1_GPIO_Port,
 uint16_t row_gpio_pin[ROW_SIZE] = {Row0_Pin, Row1_Pin, Row2_Pin, Row3_Pin};
 uint16_t col_gpio_pin[COL_SIZE] = {Col0_Pin, Col1_Pin, Col2_Pin, Col3_Pin};
 
+uint8_t state = IDLE;
+uint8_t new_pressed_key = 0;
+uint8_t old_pressed_key = 0;
+uint8_t debounce = 0;
+uint8_t row_key = 0;
+uint8_t col_key = 0;
 /**
   * @brief	Initializes the keypad(4x4).
   * @param	None
@@ -321,6 +317,16 @@ void Keypad_Init()
 	HAL_GPIO_WritePin(GPIOG, Row2_Pin|Col3_Pin, GPIO_PIN_SET);
 	HAL_GPIO_WritePin(GPIOD, Row3_Pin, GPIO_PIN_SET);
 	HAL_GPIO_WritePin(GPIOE, Col2_Pin, GPIO_PIN_SET);
+
+	GPIOF->OSPEEDR |= GPIO_OSPEEDER_OSPEEDR11_0 | GPIO_OSPEEDER_OSPEEDR15_0
+					| GPIO_OSPEEDER_OSPEEDR11_1 | GPIO_OSPEEDER_OSPEEDR15_1;
+	GPIOE->OSPEEDR |= GPIO_OSPEEDER_OSPEEDR0_0 | GPIO_OSPEEDER_OSPEEDR0_1;
+	GPIOG->OSPEEDR |= GPIO_OSPEEDER_OSPEEDR8_0 | GPIO_OSPEEDER_OSPEEDR8_1;
+
+	GPIOF->OSPEEDR |= GPIO_OSPEEDER_OSPEEDR12_0 | GPIO_OSPEEDER_OSPEEDR13_0
+					| GPIO_OSPEEDER_OSPEEDR12_1 | GPIO_OSPEEDER_OSPEEDR13_1;
+	GPIOG->OSPEEDR |= GPIO_OSPEEDER_OSPEEDR14_0 | GPIO_OSPEEDER_OSPEEDR14_1;
+	GPIOD->OSPEEDR |= GPIO_OSPEEDER_OSPEEDR10_0 | GPIO_OSPEEDER_OSPEEDR10_1;
 }
 
 /**
@@ -352,7 +358,7 @@ void Set_Columns_Input()
   * @param	None
   * @retval None
   */
-void Set_Row_Output()
+void Set_Rows_Output()
 {
 	GPIOF->MODER |= GPIO_MODER_MODER12_0 | GPIO_MODER_MODER13_0;
 	GPIOG->MODER |= GPIO_MODER_MODER14_0;
@@ -369,74 +375,6 @@ void Set_Rows_Input()
 	GPIOF->MODER &= ~(GPIO_MODER_MODER12_0 | GPIO_MODER_MODER13_0);
 	GPIOG->MODER &= ~(GPIO_MODER_MODER14_0);
 	GPIOD->MODER &= ~(GPIO_MODER_MODER10_0);
-}
-
-void Read_Columns()
-{
-	//reads columns
-	for (uint8_t i = 0; i < COL_SIZE; ++i)
-	{
-		//if pressed
-		if (HAL_GPIO_ReadPin(col_gpio_port[i], col_gpio_pin[i]))
-		{
-			col_counter_1[i]++;
-			col_counter_0[i] = 0;
-
-			if (col_counter_1[i] >= DEBOUNCE_TIME)
-			{
-				col_pressed[i] = 1;
-			}
-		//if not pressed
-		} else
-		{
-			col_counter_0[i]++;
-			col_counter_1[i] = 0;
-
-			if (col_counter_0[i] >= DEBOUNCE_TIME)
-			{
-				//if released
-				if (col_pressed[i] == 1)
-				{
-					col_pressed[i] = 0;
-					col_key |=  pos[i];
-				}
-			}
-		}
-	}
-}
-
-void Read_Rows()
-{
-	//reads rows
-	for (uint8_t i = 0; i < ROW_SIZE; ++i)
-	{
-		//if pressed
-		if (HAL_GPIO_ReadPin(row_gpio_port[i], row_gpio_pin[i]))
-		{
-			row_counter_1[i]++;
-			row_counter_0[i] = 0;
-
-			if (row_counter_1[i] >= DEBOUNCE_TIME)
-			{
-				row_pressed[i] = 1;
-			}
-		//if not pressed
-		} else
-		{
-			row_counter_0[i]++;
-			row_counter_1[i] = 0;
-
-			if (row_counter_0[i] >= DEBOUNCE_TIME)
-			{
-				//if released
-				if (row_pressed[i] == 1)
-				{
-					row_pressed[i] = 0;
-					row_key |=  pos[i];
-				}
-			}
-		}
-	}
 }
 
 /**
@@ -462,52 +400,167 @@ void Keypad_Write_Buffer(uint8_t data)
   */
 void Read_Keypad()
 {
-	uint8_t pressed_key = 0;
+	uint8_t row_pressed_counter = 0;
+	uint8_t col_pressed_counter = 0;
 
-	//if 5 ms is passed
-	if (keypad_timeout == KEYPAD_TIMEOUT)
+	switch(state)
 	{
-		keypad_timeout = 0;
+		case IDLE:
 
-		Set_Row_Output();
-		Set_Columns_Input();
-		Read_Columns();
+			Set_Columns_Output();
+			Set_Rows_Input();
 
-		Set_Columns_Output();
-		Set_Rows_Input();
-		Read_Rows();
-
-		//if pressed 2 buttons reset row value
-		if ((row_key != ROW1) && (row_key != ROW2) && (row_key != ROW3)
-												&& (row_key != ROW4))
-		{
-			row_key = 0;
-		}
-
-		//if pressed 2 buttons reset columns value
-		if ((col_key != COL1) && (col_key != COL2) && (col_key != COL3)
-												&& (col_key != COL4))
-		{
-			col_key = 0;
-		}
-
-		//if pressed a button
-		if (row_key != 0 && col_key != 0)
-		{
-			pressed_key = (row_key << 4) & (col_key & 0x0F);
-			row_key = 0;
-			col_key = 0;
-
-			if (!Full(keypad_buf_length))
+			//read rows
+			for (int i = 0; i < ROW_SIZE; ++i)
 			{
-				uint8_t data = Convert_Key_to_Char(pressed_key);
-				Keypad_Write_Buffer(data);
+				if (HAL_GPIO_ReadPin(row_gpio_port[i], row_gpio_pin[i]) == PRESSED)
+				{
+					row_key = pos[i];
+					row_pressed_counter++;
+				}
 			}
-		}
+
+			Set_Rows_Output();
+			Set_Columns_Input();
+
+			//read columns
+			for (int i = 0; i < COL_SIZE; ++i)
+			{
+				if (HAL_GPIO_ReadPin(col_gpio_port[i], col_gpio_pin[i]) == PRESSED)
+				{
+					col_key = pos[i];
+					col_pressed_counter++;
+				}
+			}
+
+			//if pressed more than one goes to "Error" state
+			if (col_pressed_counter > SINGLE_KEY || row_pressed_counter > SINGLE_KEY)
+			{
+				row_key = 0;
+				col_key = 0;
+
+				state = ERROR;
+
+			//if pressed single key after debounce time goes to "SINGLE" state
+			} else if (col_pressed_counter == SINGLE_KEY && row_pressed_counter == SINGLE_KEY)
+			{
+				new_pressed_key = (row_key << 4) | (col_key & 0x0F);
+
+				if (new_pressed_key != old_pressed_key && old_pressed_key != 0)
+				{
+					debounce = 0;
+				}
+				old_pressed_key = new_pressed_key;
+
+				debounce++;
+
+				if (debounce == DEBOUNCE_TIME)
+				{
+					debounce = 0;
+					row_key = 0;
+					col_key = 0;
+
+					state = SINGLE;
+				}
+			}
+
+			break;
+
+		case ERROR:
+
+			Set_Columns_Output();
+			Set_Rows_Input();
+
+			for (int i = 0; i < ROW_SIZE; ++i)
+			{
+				if (HAL_GPIO_ReadPin(row_gpio_port[i], row_gpio_pin[i]) == PRESSED)
+				{
+					row_pressed_counter++;
+				}
+			}
+
+			Set_Rows_Output();
+			Set_Columns_Input();
+
+			for (int i = 0; i < COL_SIZE; ++i)
+			{
+				if (HAL_GPIO_ReadPin(col_gpio_port[i], col_gpio_pin[i]) == PRESSED)
+				{
+					col_pressed_counter++;
+				}
+			}
+
+			//if released all buttons after debounce time goes to "IDLE" state
+			if (row_pressed_counter == 0 && col_pressed_counter == 0)
+			{
+				debounce++;
+
+				if (debounce == DEBOUNCE_TIME)
+				{
+					debounce = 0;
+					state = IDLE;
+				}
+			}
+
+			break;
+
+		case SINGLE:
+
+			Set_Columns_Output();
+			Set_Rows_Input();
+
+			for (int i = 0; i < ROW_SIZE; ++i)
+			{
+				if (HAL_GPIO_ReadPin(row_gpio_port[i], row_gpio_pin[i]) == PRESSED)
+				{
+					row_pressed_counter++;
+				}
+			}
+
+			Set_Rows_Output();
+			Set_Columns_Input();
+
+			for (int i = 0; i < COL_SIZE; ++i)
+			{
+				if (HAL_GPIO_ReadPin(col_gpio_port[i], col_gpio_pin[i]) == PRESSED)
+				{
+					col_pressed_counter++;
+				}
+			}
+
+			//if pressed second key after hold pressing first key goes to "Error" state
+			if (col_pressed_counter > SINGLE_KEY || row_pressed_counter > SINGLE_KEY)
+			{
+				row_key = 0;
+				col_key = 0;
+				state = ERROR;
+
+			//if released the pressed key writes char to the buffer
+			} else if (col_pressed_counter == 0 && row_pressed_counter == 0)
+			{
+				debounce++;
+
+				if (debounce == DEBOUNCE_TIME)
+				{
+					debounce = 0;
+
+					uint8_t data = Convert_Key_to_Char(new_pressed_key);
+					row_key = 0;
+					col_key = 0;
+					new_pressed_key = 0;
+					Keypad_Write_Buffer(data);
+
+					//HAL_UART_Transmit(&huart3, &data, 1, 0xFFFF);
+					//HAL_UART_Transmit(&huart3, "\r\n", sizeof("\r\n"), 0xFFFF);
+
+					state = IDLE;
+				}
+			}
+
+			break;
 	}
 
 }
-
 /**
   * @brief	Converts key to char.
   * @param	None
@@ -546,9 +599,9 @@ uint8_t Convert_Key_to_Char(uint8_t key)
 		case 0x82:
 			return '0';
 		case 0x84:
-			return '9';
-		case 0x88:
 			return '#';
+		case 0x88:
+			return 'D';
 		default:
 			return 0;
 	}
