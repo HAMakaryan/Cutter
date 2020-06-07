@@ -377,6 +377,36 @@ void Set_Rows_Input()
 	GPIOD->MODER &= ~(GPIO_MODER_MODER10_0);
 }
 
+
+
+void Read_Rows(uint8_t *row_counter)
+{
+	Set_Columns_Output();
+	Set_Rows_Input();
+
+	for (int i = 0; i < ROW_SIZE; ++i)
+	{
+		if (HAL_GPIO_ReadPin(row_gpio_port[i], row_gpio_pin[i]) == PRESSED)
+		{
+			(*row_counter)++;
+		}
+	}
+}
+
+void Read_Columns(uint8_t *col_counter)
+{
+	Set_Rows_Output();
+	Set_Columns_Input();
+
+	for (int i = 0; i < COL_SIZE; ++i)
+	{
+		if (HAL_GPIO_ReadPin(col_gpio_port[i], col_gpio_pin[i]) == PRESSED)
+		{
+			(*col_counter)++;
+		}
+	}
+}
+
 /**
   * @brief	Writes keypad data to buffer
   * @param	Data
@@ -410,11 +440,12 @@ void Read_Keypad()
 			Set_Columns_Output();
 			Set_Rows_Input();
 
-			//read rows
+			//Reads rows
 			for (int i = 0; i < ROW_SIZE; ++i)
 			{
 				if (HAL_GPIO_ReadPin(row_gpio_port[i], row_gpio_pin[i]) == PRESSED)
 				{
+					//get pressed row number
 					row_key = pos[i];
 					row_pressed_counter++;
 				}
@@ -423,29 +454,31 @@ void Read_Keypad()
 			Set_Rows_Output();
 			Set_Columns_Input();
 
-			//read columns
+			//Reads columns
 			for (int i = 0; i < COL_SIZE; ++i)
 			{
 				if (HAL_GPIO_ReadPin(col_gpio_port[i], col_gpio_pin[i]) == PRESSED)
 				{
+					//Gets pressed column number
 					col_key = pos[i];
 					col_pressed_counter++;
 				}
 			}
 
-			//if pressed more than one goes to "Error" state
+			//If pressed more than one keys goes to "Error" state
 			if (col_pressed_counter > SINGLE_KEY || row_pressed_counter > SINGLE_KEY)
 			{
 				row_key = 0;
 				col_key = 0;
-
+				debounce = 0;
 				state = ERROR;
 
-			//if pressed single key after debounce time goes to "SINGLE" state
+			//If pressed single key goes to "SINGLE" state after debounce time
 			} else if (col_pressed_counter == SINGLE_KEY && row_pressed_counter == SINGLE_KEY)
 			{
 				new_pressed_key = (row_key << 4) | (col_key & 0x0F);
 
+				//If pressed key changed resets debounce counter
 				if (new_pressed_key != old_pressed_key && old_pressed_key != 0)
 				{
 					debounce = 0;
@@ -454,47 +487,28 @@ void Read_Keypad()
 
 				debounce++;
 
+				//After debounce time goes "SINGLE" state
 				if (debounce == DEBOUNCE_TIME)
 				{
 					debounce = 0;
 					row_key = 0;
 					col_key = 0;
-
 					state = SINGLE;
 				}
 			}
-
 			break;
 
 		case ERROR:
 
-			Set_Columns_Output();
-			Set_Rows_Input();
+			Read_Rows(&row_pressed_counter);
+			Read_Columns(&col_pressed_counter);
 
-			for (int i = 0; i < ROW_SIZE; ++i)
-			{
-				if (HAL_GPIO_ReadPin(row_gpio_port[i], row_gpio_pin[i]) == PRESSED)
-				{
-					row_pressed_counter++;
-				}
-			}
-
-			Set_Rows_Output();
-			Set_Columns_Input();
-
-			for (int i = 0; i < COL_SIZE; ++i)
-			{
-				if (HAL_GPIO_ReadPin(col_gpio_port[i], col_gpio_pin[i]) == PRESSED)
-				{
-					col_pressed_counter++;
-				}
-			}
-
-			//if released all buttons after debounce time goes to "IDLE" state
+			//If released all buttons after debounce time goes to "IDLE" state
 			if (row_pressed_counter == 0 && col_pressed_counter == 0)
 			{
 				debounce++;
 
+				//After debounce time goes "IDLE" state
 				if (debounce == DEBOUNCE_TIME)
 				{
 					debounce = 0;
@@ -506,48 +520,31 @@ void Read_Keypad()
 
 		case SINGLE:
 
-			Set_Columns_Output();
-			Set_Rows_Input();
+			Read_Rows(&row_pressed_counter);
+			Read_Columns(&col_pressed_counter);
 
-			for (int i = 0; i < ROW_SIZE; ++i)
-			{
-				if (HAL_GPIO_ReadPin(row_gpio_port[i], row_gpio_pin[i]) == PRESSED)
-				{
-					row_pressed_counter++;
-				}
-			}
-
-			Set_Rows_Output();
-			Set_Columns_Input();
-
-			for (int i = 0; i < COL_SIZE; ++i)
-			{
-				if (HAL_GPIO_ReadPin(col_gpio_port[i], col_gpio_pin[i]) == PRESSED)
-				{
-					col_pressed_counter++;
-				}
-			}
-
-			//if pressed second key after hold pressing first key goes to "Error" state
+			//If pressed second key after hold pressing first key goes to "Error" state
 			if (col_pressed_counter > SINGLE_KEY || row_pressed_counter > SINGLE_KEY)
 			{
 				row_key = 0;
 				col_key = 0;
 				state = ERROR;
 
-			//if released the pressed key writes char to the buffer
+			//If released the pressed key
 			} else if (col_pressed_counter == 0 && row_pressed_counter == 0)
 			{
 				debounce++;
 
+				//After debounce time writes key to buffer and goes to "IDLE" state
 				if (debounce == DEBOUNCE_TIME)
 				{
 					debounce = 0;
 
+					//Converts pressed key code to character
 					uint8_t data = Convert_Key_to_Char(new_pressed_key);
-					row_key = 0;
-					col_key = 0;
+
 					new_pressed_key = 0;
+
 					Keypad_Write_Buffer(data);
 
 					//HAL_UART_Transmit(&huart3, &data, 1, 0xFFFF);
@@ -559,7 +556,6 @@ void Read_Keypad()
 
 			break;
 	}
-
 }
 /**
   * @brief	Converts key to char.
