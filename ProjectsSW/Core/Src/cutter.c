@@ -495,7 +495,10 @@ void Read_Keypad()
 					col_key = 0;
 					state = SINGLE;
 				}
+			} else {
+				debounce = 0;
 			}
+
 			break;
 
 		case ERROR:
@@ -514,6 +517,8 @@ void Read_Keypad()
 					debounce = 0;
 					state = IDLE;
 				}
+			} else {
+				debounce = 0;
 			}
 
 			break;
@@ -552,6 +557,8 @@ void Read_Keypad()
 
 					state = IDLE;
 				}
+			} else {
+				debounce = 0;
 			}
 
 			break;
