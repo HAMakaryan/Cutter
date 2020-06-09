@@ -74,4 +74,25 @@ uint8_t Convert_Key_to_Char(uint8_t key);
 uint16_t Read_Encoder(void);
 uint16_t Read_Coord(void);
 
+void Read_Pin(GPIO_TypeDef* GPIOx, uint16_t GPIO_Pin, uint8_t * st0_counter,
+					uint8_t * st1_counter, uint8_t * is_pressed, uint8_t on_state);
+void Read_Inputs(void);
+
+
+typedef struct
+{
+	uint8_t cut_cnt_for_st0;
+	uint8_t pedal_cnt_for_st0;
+	uint8_t hand_catch_cnt_for_st0;
+
+	uint8_t cut_cnt_for_st1;
+	uint8_t pedal_cnt_for_st1;
+	uint8_t hand_catch_cnt_for_st1;
+
+	uint8_t cut_is_pressed;
+	uint8_t pedal_is_pressed;
+	uint8_t hand_catch_is_pressed;
+
+} Input_State;
+
 #endif /* INC_CUTTER_H_ */

@@ -24,6 +24,8 @@ uint8_t completed = 1;
 uint8_t data_arr[4];
 uint16_t lcd_ring_buffer[LCD_BUF_SIZE];
 
+Input_State input_state;
+
 /**
   * @brief	Sends data to LCD with blocking mode.
   * @param	LCD address
@@ -421,6 +423,23 @@ void Keypad_Write_Buffer(uint8_t data)
 	{
 	  keypad_wr_pnt = 0;
 	}
+}
+
+/**
+  * @brief	Gets data from the buffer
+  * @param	Buffer
+  * @retval	Read data
+  */
+uint8_t Read_Keypad_Buffer(uint8_t *buffer)
+{
+	uint8_t data = keypad_buffer[keypad_rd_pnt];
+	keypad_buf_length--;
+	keypad_rd_pnt++;
+	if (keypad_rd_pnt == KEYPAD_BUF_SIZE)
+	{
+		keypad_rd_pnt = 0;
+	}
+	return data;
 }
 
 /**
@@ -834,4 +853,129 @@ uint8_t Read_Knife_Sensors(void)
 uint8_t Read_Hand_Catch_Input()
 {
 	return 0;
+}
+
+
+float set_cord = 0;
+uint8_t num_pos = 0;
+float mask = 0;
+
+void Create_Number(uint8_t data)
+{
+	/*uint8_t data = 0;
+
+	if (!Empty(keypad_buf_length))
+	{
+		//data = Read_Keypad_Buffer(keypad_buffer);
+	}*/
+
+	if (data != '*' && data != '#')
+	{
+		if (num_pos < 5)
+		{
+			num_pos++;
+
+			if (num_pos == 1)
+			{
+				mask = 0.1;
+
+			} else if (num_pos == 2)
+			{
+				mask = 1;
+			} else if (num_pos == 3)
+			{
+				mask = 10;
+			} else if (num_pos == 4)
+			{
+				mask = 100;
+			} else if (num_pos == 5)
+			{
+				mask = 1000;
+			}
+			set_cord = set_cord + mask * data;
+		}
+
+	} else if (data == '*') {
+
+		if (num_pos > 0)
+		{
+			if (num_pos == 1)
+			{
+				mask = set_cord;
+			} else if (num_pos == 2) {
+
+				mask = (int)set_cord;
+			} else if (num_pos == 3)
+			{
+				mask = ((int)set_cord/10) * 10;
+			} else if (num_pos == 4)
+			{
+				mask = ((int)set_cord/100) * 100;
+			} else if (num_pos == 5) {
+
+				mask = ((int)set_cord/1000) * 1000;
+			}
+			set_cord = set_cord - mask;
+			num_pos--;
+		}
+	} else if (data == '#') {
+
+	} else {
+		num_pos = 0;
+		set_cord = 0;
+		mask = 0;
+	}
+}
+
+void Read_Inputs(void)
+{
+	Read_Pin(Cutting_Buttons_GPIO_Port, Cutting_Buttons_Pin, &input_state.cut_cnt_for_st0,
+				 &input_state.cut_cnt_for_st1, &input_state.cut_is_pressed, 0);
+
+	Read_Pin(Pedal_In_GPIO_Port, Pedal_In_Pin, &input_state.pedal_cnt_for_st0,
+			 &input_state.pedal_cnt_for_st1, &input_state.pedal_is_pressed, 0);
+
+	Read_Pin(Hand_Catch_GPIO_Port, Hand_Catch_Pin, &input_state.hand_catch_cnt_for_st0,
+ &input_state.hand_catch_cnt_for_st1,	&input_state.hand_catch_is_pressed, 1);
+}
+
+// Read desired button
+void Read_Pin(GPIO_TypeDef* GPIOx, uint16_t GPIO_Pin, uint8_t * st0_counter,
+				uint8_t * st1_counter, uint8_t * is_pressed, uint8_t on_state)
+{
+	uint8_t pin_data = 0xFF;
+
+	//read desired button pin
+	pin_data = HAL_GPIO_ReadPin(GPIOx, GPIO_Pin);
+
+	//if button is pressed
+	if (pin_data == on_state)
+	{
+		//reset counter for state1
+		*st1_counter = 0;
+
+		// Increment State0 counter
+		if (*st0_counter < DEBOUNCE_TIME+1)
+		{
+			(*st0_counter)++;
+		}
+		//if state0 counter is equal to DEBOUNCE_TIME, we consider that button is pressed.
+		if (*st0_counter == DEBOUNCE_TIME)
+		{
+			*is_pressed = 1;
+		}
+	//if button not pressed
+	} else {
+
+		*st0_counter = 0;
+
+		if (*st1_counter < DEBOUNCE_TIME+1)
+		{
+			(*st1_counter)++;
+		}
+		if (*st1_counter == DEBOUNCE_TIME)
+		{
+			*is_pressed = 0;
+		}
+	}
 }

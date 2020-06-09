@@ -66,7 +66,7 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
+extern uint8_t keypad_timeout;
 /* USER CODE END 0 */
 
 /**
@@ -147,7 +147,13 @@ int main(void)
   while (1)
   {
 	  //LCD_Write(LCD_ADDR);
-	  Read_Keypad();
+	  if (keypad_timeout == KEYPAD_TIMEOUT)
+	  {
+		  keypad_timeout = 0;
+		  Read_Keypad();
+		  Read_Inputs();
+	  }
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
