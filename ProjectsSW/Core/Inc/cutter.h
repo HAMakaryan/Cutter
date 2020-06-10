@@ -10,7 +10,7 @@
 
 #include "stm32f7xx_hal.h"
 
-#define LCD_BUF_SIZE	16
+#define LCD_BUF_SIZE	32
 #define LCD_ADDR		(0x27 << 1)
 #define LCD_DELAY_MS	5
 #define LCD_TIMEOUT		10
@@ -31,6 +31,10 @@
 #define ERROR 	1
 #define SINGLE	2
 
+#define EDIT 		0
+#define BRUSH_MOVE	1
+#define CUTTING		2
+
 #define PRESSED		1
 #define RELEASED	0
 
@@ -48,6 +52,7 @@
 
 void LCD_Init(uint8_t lcd_addr);
 void LCD_Write(uint8_t lcd_addr);
+void Create_Number(void);
 void Keypad_Init(void);
 void Save_Coord(float coord);
 void Set_Inverter(uint8_t dir, uint16_t speed);
@@ -55,8 +60,8 @@ void Change_Speed(uint16_t speed);
 void Brush_Brake_Off(void);
 void Brush_Brake_On(void);
 void Move_Brush(void);
-void Solid_On();
-void Solid_Off();
+void Solid_On(void);
+void Solid_Off(void);
 void Pressing_On(void);
 void Pressing_Off(void);
 void Cutting_On(void);

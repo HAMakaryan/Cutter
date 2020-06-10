@@ -8,6 +8,7 @@
 #include "stm32f7xx_hal.h"
 #include <stdint.h>
 #include <string.h>
+#include <stdio.h>
 #include "main.h"
 #include "cutter.h"
 
@@ -162,7 +163,7 @@ uint8_t Empty(uint8_t buff_size)
   */
 void LCD_Write_Buffer(uint16_t *data, uint8_t size)
 {
-	for (int i = 0; i < size; ++i)
+	for (uint8_t i = 0; i < size; ++i)
 	{
 	  if (!Full(lcd_buf_length))
 	  {
@@ -240,7 +241,7 @@ void LCD_Write(uint8_t lcd_addr)
 
 				HAL_I2C_Master_Transmit_IT(&hi2c1, lcd_addr, data_arr, 4);
 
-				/*for (int i = 0; i < 4; ++i)
+				/*for (uint8_t i = 0; i < 4; ++i)
 				{
 					int  num = 32424;
 					char hex[10];
@@ -386,7 +387,7 @@ void Read_Rows(uint8_t *row_counter)
 	Set_Columns_Output();
 	Set_Rows_Input();
 
-	for (int i = 0; i < ROW_SIZE; ++i)
+	for (uint8_t i = 0; i < ROW_SIZE; ++i)
 	{
 		if (HAL_GPIO_ReadPin(row_gpio_port[i], row_gpio_pin[i]) == PRESSED)
 		{
@@ -400,7 +401,7 @@ void Read_Columns(uint8_t *col_counter)
 	Set_Rows_Output();
 	Set_Columns_Input();
 
-	for (int i = 0; i < COL_SIZE; ++i)
+	for (uint8_t i = 0; i < COL_SIZE; ++i)
 	{
 		if (HAL_GPIO_ReadPin(col_gpio_port[i], col_gpio_pin[i]) == PRESSED)
 		{
@@ -460,7 +461,7 @@ void Read_Keypad()
 			Set_Rows_Input();
 
 			//Reads rows
-			for (int i = 0; i < ROW_SIZE; ++i)
+			for (uint8_t i = 0; i < ROW_SIZE; ++i)
 			{
 				if (HAL_GPIO_ReadPin(row_gpio_port[i], row_gpio_pin[i]) == PRESSED)
 				{
@@ -474,7 +475,7 @@ void Read_Keypad()
 			Set_Columns_Input();
 
 			//Reads columns
-			for (int i = 0; i < COL_SIZE; ++i)
+			for (uint8_t i = 0; i < COL_SIZE; ++i)
 			{
 				if (HAL_GPIO_ReadPin(col_gpio_port[i], col_gpio_pin[i]) == PRESSED)
 				{
@@ -855,75 +856,145 @@ uint8_t Read_Hand_Catch_Input()
 	return 0;
 }
 
-
-float set_cord = 0;
+///////////////////////////////////////////////////////////////////////////////
 uint8_t num_pos = 0;
+uint8_t number_accept_count = 0;
+uint8_t mode = EDIT;
 float mask = 0;
+float set_cord = 0;
 
-void Create_Number(uint8_t data)
+void Write_LCD_Buffer(uint8_t* buf, uint8_t size, uint8_t cursor)
 {
-	/*uint8_t data = 0;
+	for (uint8_t i = 0; i < LCD_BUF_SIZE; ++i)
+	{
+		lcd_ring_buffer[i] = 0;
+	}
+	lcd_write_pnt = lcd_read_pnt = 0;
+	lcd_buf_length = 0;
+
+	uint16_t lcd_buf[LCD_BUF_SIZE];
+	lcd_buf[0] = cursor;
+
+	for (uint8_t i = 1; i < size; ++i)
+	{
+		lcd_buf[i] = buf[i] | 0x0100;
+	}
+
+	LCD_Write_Buffer(lcd_buf, size);
+}
+
+void Create_Number()
+{
+	uint8_t data = 0;
 
 	if (!Empty(keypad_buf_length))
 	{
-		//data = Read_Keypad_Buffer(keypad_buffer);
-	}*/
+		data = Read_Keypad_Buffer(keypad_buffer);
 
-	if (data != '*' && data != '#')
-	{
-		if (num_pos < 5)
+		if (mode == EDIT)
 		{
-			num_pos++;
+			//if gets number
+			if (data >= '0' && data <= '9')
+			{
+				if (num_pos < 5)
+				{
+					num_pos++;
 
-			if (num_pos == 1)
-			{
-				mask = 0.1;
+					if (num_pos == 1)
+					{
+						mask = 0.1;
 
-			} else if (num_pos == 2)
-			{
-				mask = 1;
-			} else if (num_pos == 3)
-			{
-				mask = 10;
-			} else if (num_pos == 4)
-			{
-				mask = 100;
-			} else if (num_pos == 5)
-			{
-				mask = 1000;
+					} else if (num_pos == 2)
+					{
+						mask = 1;
+					} else if (num_pos == 3)
+					{
+						mask = 10;
+					} else if (num_pos == 4)
+					{
+						mask = 100;
+					} else if (num_pos == 5)
+					{
+						mask = 1000;
+
+					}
+					//Converts char to int
+					uint8_t converted_char = data - '0';
+					//Creates number from digits
+					set_cord = set_cord + mask * converted_char;
+				}
+
+			//if gets * to delete digit
+			} else if (data == '*') {
+
+				if (number_accept_count == 0)
+				{
+					if (num_pos > 0)
+					{
+						if (num_pos == 1)
+						{
+							mask = set_cord;
+						} else if (num_pos == 2) {
+
+							mask = (int)set_cord;
+						} else if (num_pos == 3)
+						{
+							mask = ((int)set_cord/10) * 10;
+						} else if (num_pos == 4)
+						{
+							mask = ((int)set_cord/100) * 100;
+						} else if (num_pos == 5) {
+
+							mask = ((int)set_cord/1000) * 1000;
+						}
+						set_cord = set_cord - mask;
+						num_pos--;
+					}
+				} else if (number_accept_count == 1)
+				{
+					Write_LCD_Buffer((uint8_t*)"              ", 14, 0xD7);
+				}
+			} else if (data >= 'A' && data <= 'D') {
+				num_pos = 0;
+				set_cord = 0;
 			}
-			set_cord = set_cord + mask * data;
-		}
 
-	} else if (data == '*') {
-
-		if (num_pos > 0)
-		{
-			if (num_pos == 1)
+			if (data == '#')
 			{
-				mask = set_cord;
-			} else if (num_pos == 2) {
+				number_accept_count++;
 
-				mask = (int)set_cord;
-			} else if (num_pos == 3)
-			{
-				mask = ((int)set_cord/10) * 10;
-			} else if (num_pos == 4)
-			{
-				mask = ((int)set_cord/100) * 100;
-			} else if (num_pos == 5) {
+				if (number_accept_count == 1)
+				{
+					Write_LCD_Buffer((uint8_t*)" Are you sure?", 14, 0xD7);
 
-				mask = ((int)set_cord/1000) * 1000;
+				} else if (number_accept_count == 2)
+				{
+					mode = BRUSH_MOVE;
+
+					Write_LCD_Buffer((uint8_t*)"              ", 14, 0xD7);
+				}
+
+			} else {
+
+				if (number_accept_count < 1)
+				{
+					uint8_t temp_buf[LCD_BUF_SIZE];
+					sprintf((char*)temp_buf+1, "%6.1lf", set_cord);
+
+					for (uint8_t i = 1; i < 7; ++i)
+					{
+						if (temp_buf[i] == 0x20)
+						{
+							temp_buf[i] = '0';
+						}
+					}
+
+					Write_LCD_Buffer(temp_buf, 7, 0xC6);
+				}
+				number_accept_count = 0;
+
 			}
-			set_cord = set_cord - mask;
-			num_pos--;
 		}
-	} else if (data == '#') {
-
-	} else {
-		num_pos = 0;
-		set_cord = 0;
-		mask = 0;
 	}
 }
 

@@ -36,6 +36,7 @@
 /* USER CODE BEGIN Includes */
 #include "stdio.h"
 #include "cutter.h"
+#include <string.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -113,7 +114,14 @@ int main(void)
 
   LCD_Init(LCD_ADDR);
   char buf[10];
-  sprintf(buf, "%.1f", real_coord);
+  sprintf(buf, "%6.1f", real_coord);
+  for (int i = 0; i < strlen(buf); ++i)
+  {
+	  if (buf[i] == 0x20)
+	  {
+		  buf[i] = '0';
+	  }
+  }
   LCD_SendCommand(LCD_ADDR, 0x80);
   LCD_SendString(LCD_ADDR, "Real  ");
   LCD_SendString(LCD_ADDR, buf);
@@ -121,12 +129,6 @@ int main(void)
   LCD_SendCommand(LCD_ADDR, 0xC0);
   LCD_SendString(LCD_ADDR, "Set   ");
   LCD_SendString(LCD_ADDR, buf);
-
-  LCD_SendCommand(LCD_ADDR, 0x94);
-  LCD_SendString(LCD_ADDR, "Are you sure?   ");
-  LCD_SendCommand(LCD_ADDR, 0xD4);
-  LCD_SendString(LCD_ADDR, "Yes");
-
 
   Keypad_Init();
   HAL_NVIC_SetPriority(I2C1_EV_IRQn, 0, 0);
@@ -137,16 +139,12 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  uint16_t buffer2[15] = {0x01, 0x80, 'A'|0x0100, 'r'|0x0100,
-    		  	  	  'e'|0x0100, 0x20|0x0100, 'Y'|0x0100, 'o'|0x0100, 'u'|0x0100,
-    				  0x20|0x0100, 'S'|0x0100, 'u'|0x0100, 'r'|0x0100, 'e'|0x0100,
-  				  '?'|0x0100};
-
-  LCD_Write_Buffer(buffer2, 15);
 
   while (1)
   {
-	  //LCD_Write(LCD_ADDR);
+	  LCD_Write(LCD_ADDR);
+	  Create_Number();
+
 	  if (keypad_timeout == KEYPAD_TIMEOUT)
 	  {
 		  keypad_timeout = 0;
