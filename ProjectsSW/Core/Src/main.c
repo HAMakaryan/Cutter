@@ -130,6 +130,9 @@ int main(void)
   LCD_SendString(LCD_ADDR, "Set   ");
   LCD_SendString(LCD_ADDR, buf);
 
+  LCD_SendCommand(LCD_ADDR, 0xD7);
+  LCD_SendString(LCD_ADDR, "Are you sure?");
+
   Keypad_Init();
   HAL_NVIC_SetPriority(I2C1_EV_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(I2C1_EV_IRQn);
@@ -142,8 +145,8 @@ int main(void)
 
   while (1)
   {
+	  Collect_Digits();
 	  LCD_Write(LCD_ADDR);
-	  Create_Number();
 
 	  if (keypad_timeout == KEYPAD_TIMEOUT)
 	  {

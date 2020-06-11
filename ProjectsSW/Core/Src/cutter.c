@@ -120,7 +120,7 @@ void LCD_Init(uint8_t lcd_addr)
 	HAL_Delay(10);
 
 	LCD_SendCommand(lcd_addr, 0x28);      // configuring LCD as 2 line 5x7 matrix
-	LCD_SendCommand(lcd_addr, 0x0E);      // Display on, Cursor on
+	LCD_SendCommand(lcd_addr, 0x0C);      // Display on, Cursor off
 	LCD_SendCommand(lcd_addr, 0x01);      // Clear Display Screen
 	LCD_SendCommand(lcd_addr, 0x06);      // Increment cursor, no shift
 }
@@ -859,9 +859,9 @@ uint8_t Read_Hand_Catch_Input()
 ///////////////////////////////////////////////////////////////////////////////
 uint8_t num_pos = 0;
 uint8_t number_accept_count = 0;
-uint8_t mode = EDIT;
-float mask = 0;
-float set_cord = 0;
+uint8_t mode = 0;
+uint8_t coord_array[6] = {'0','0','0','0','0','0'};
+float set_coord = 0;
 
 void Write_LCD_Buffer(uint8_t* buf, uint8_t size, uint8_t cursor)
 {
@@ -880,10 +880,25 @@ void Write_LCD_Buffer(uint8_t* buf, uint8_t size, uint8_t cursor)
 		lcd_buf[i] = buf[i] | 0x0100;
 	}
 
+	if (cursor == 0xC6)
+	{
+		uint16_t temp = 0;
+		temp = lcd_buf[5];
+		lcd_buf[5] = '.' | 0x0100;
+		lcd_buf[6] = temp;
+	}
 	LCD_Write_Buffer(lcd_buf, size);
 }
 
-void Create_Number()
+float Create_Number(uint8_t* buf)
+{
+	float coord = ((buf[1]-'0')*1000) + ((buf[2]-'0')*100) + ((buf[3]-'0')*10)
+			+ (buf[4]-'0') + ((buf[5]-'0')*0.1);
+
+	return coord;
+}
+
+void Collect_Digits()
 {
 	uint8_t data = 0;
 
@@ -896,32 +911,20 @@ void Create_Number()
 			//if gets number
 			if (data >= '0' && data <= '9')
 			{
-				if (num_pos < 5)
+				if (number_accept_count == 0)
 				{
-					num_pos++;
+					if (num_pos < 5)
+					{
+						num_pos++;
 
-					if (num_pos == 1)
-					{
-						mask = 0.1;
+						for (uint8_t i = 1; i < 6; ++i)
+						{
+							coord_array[i] = coord_array[i+1];
+						}
+						coord_array[5] = data;
 
-					} else if (num_pos == 2)
-					{
-						mask = 1;
-					} else if (num_pos == 3)
-					{
-						mask = 10;
-					} else if (num_pos == 4)
-					{
-						mask = 100;
-					} else if (num_pos == 5)
-					{
-						mask = 1000;
-
+						Write_LCD_Buffer(coord_array, 7, 0xC6);
 					}
-					//Converts char to int
-					uint8_t converted_char = data - '0';
-					//Creates number from digits
-					set_cord = set_cord + mask * converted_char;
 				}
 
 			//if gets * to delete digit
@@ -931,32 +934,21 @@ void Create_Number()
 				{
 					if (num_pos > 0)
 					{
-						if (num_pos == 1)
-						{
-							mask = set_cord;
-						} else if (num_pos == 2) {
-
-							mask = (int)set_cord;
-						} else if (num_pos == 3)
-						{
-							mask = ((int)set_cord/10) * 10;
-						} else if (num_pos == 4)
-						{
-							mask = ((int)set_cord/100) * 100;
-						} else if (num_pos == 5) {
-
-							mask = ((int)set_cord/1000) * 1000;
-						}
-						set_cord = set_cord - mask;
 						num_pos--;
+
+						for (uint8_t i = 1; i < 6; ++i)
+						{
+							coord_array[6-i] = coord_array[6-i-1];
+						}
+						coord_array[1] = '0';
+
+						Write_LCD_Buffer(coord_array, 7, 0xC6);
 					}
 				} else if (number_accept_count == 1)
 				{
-					Write_LCD_Buffer((uint8_t*)"              ", 14, 0xD7);
+					number_accept_count = 0;
+					Write_LCD_Buffer((uint8_t*)"   Edit Mode  ", 14, 0xD7);
 				}
-			} else if (data >= 'A' && data <= 'D') {
-				num_pos = 0;
-				set_cord = 0;
 			}
 
 			if (data == '#')
@@ -965,35 +957,26 @@ void Create_Number()
 
 				if (number_accept_count == 1)
 				{
+					//Creates number from collected digits
+					set_coord = Create_Number(coord_array);
 					Write_LCD_Buffer((uint8_t*)" Are you sure?", 14, 0xD7);
 
 				} else if (number_accept_count == 2)
 				{
+					//After pressing # of second time goes BRUSH_MOVE mode
 					mode = BRUSH_MOVE;
-
 					Write_LCD_Buffer((uint8_t*)"              ", 14, 0xD7);
 				}
-
-			} else {
-
-				if (number_accept_count < 1)
-				{
-					uint8_t temp_buf[LCD_BUF_SIZE];
-					sprintf((char*)temp_buf+1, "%6.1lf", set_cord);
-
-					for (uint8_t i = 1; i < 7; ++i)
-					{
-						if (temp_buf[i] == 0x20)
-						{
-							temp_buf[i] = '0';
-						}
-					}
-
-					Write_LCD_Buffer(temp_buf, 7, 0xC6);
-				}
-				number_accept_count = 0;
-
 			}
+		} else if (data == '#')
+		{
+			mode = BRUSH_MOVE;
+			Write_LCD_Buffer((uint8_t*)"              ", 14, 0xD7);
+
+		} else if (data == '*')
+		{
+			mode = EDIT;
+			Write_LCD_Buffer((uint8_t*)"   Edit Mode  ", 14, 0xD7);
 		}
 	}
 }

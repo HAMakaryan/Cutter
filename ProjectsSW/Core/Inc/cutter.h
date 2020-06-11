@@ -31,9 +31,9 @@
 #define ERROR 	1
 #define SINGLE	2
 
-#define EDIT 		0
-#define BRUSH_MOVE	1
-#define CUTTING		2
+#define EDIT 		1
+#define BRUSH_MOVE	2
+#define CUTTING		3
 
 #define PRESSED		1
 #define RELEASED	0
@@ -52,7 +52,7 @@
 
 void LCD_Init(uint8_t lcd_addr);
 void LCD_Write(uint8_t lcd_addr);
-void Create_Number(void);
+void Collect_Digits(void);
 void Keypad_Init(void);
 void Save_Coord(float coord);
 void Set_Inverter(uint8_t dir, uint16_t speed);
@@ -71,6 +71,9 @@ void Keypad_Write_Buffer(uint8_t data);
 void LCD_Write_Buffer(uint16_t *data, uint8_t size);
 void LCD_SendCommand(uint8_t lcd_addr, uint8_t cmd);
 void LCD_SendString(uint8_t lcd_addr, char *str);
+void Read_Pin(GPIO_TypeDef* GPIOx, uint16_t GPIO_Pin, uint8_t * st0_counter,
+					uint8_t * st1_counter, uint8_t * is_pressed, uint8_t on_state);
+void Read_Inputs(void);
 
 uint8_t Read_Pedal(void);
 uint8_t Read_Knife_Sensors(void);
@@ -79,10 +82,7 @@ uint8_t Convert_Key_to_Char(uint8_t key);
 uint16_t Read_Encoder(void);
 uint16_t Read_Coord(void);
 
-void Read_Pin(GPIO_TypeDef* GPIOx, uint16_t GPIO_Pin, uint8_t * st0_counter,
-					uint8_t * st1_counter, uint8_t * is_pressed, uint8_t on_state);
-void Read_Inputs(void);
-
+float Create_Number(uint8_t* buf);
 
 typedef struct
 {
