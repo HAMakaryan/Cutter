@@ -37,6 +37,7 @@
 #include "stdio.h"
 #include "cutter.h"
 #include <string.h>
+extern uint8_t number_accept_count;
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -67,6 +68,10 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+uint8_t encoder_time = 0;
+float real_coord = 0;
+extern int32_t encoder_value;
+extern float set_coord;
 extern uint8_t keypad_timeout;
 /* USER CODE END 0 */
 
@@ -110,7 +115,8 @@ int main(void)
   MX_RTC_Init();
   /* USER CODE BEGIN 2 */
   //Save_Coord(300.5);
-  float real_coord = (float)Read_Coord()/10;
+  real_coord = (float)Read_Coord()/10;
+  set_coord = real_coord;
 
   LCD_Init(LCD_ADDR);
   char buf[10];
@@ -132,11 +138,12 @@ int main(void)
 
   LCD_SendCommand(LCD_ADDR, 0xD7);
   LCD_SendString(LCD_ADDR, "Are you sure?");
+  number_accept_count = 1;
 
   Keypad_Init();
   HAL_NVIC_SetPriority(I2C1_EV_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(I2C1_EV_IRQn);
-  HAL_TIM_Encoder_Start_IT(&htim4, TIM_CHANNEL_ALL);
+  HAL_TIM_Encoder_Start_IT(&htim4, TIM_CHANNEL_1);
 
   /* USER CODE END 2 */
 
@@ -147,6 +154,14 @@ int main(void)
   {
 	  Collect_Digits();
 	  LCD_Write(LCD_ADDR);
+
+	  if (encoder_time == 100)
+	  {
+		  	  char hex[10];
+
+		  	  sprintf(hex, "%d\n\r", encoder_value);
+		  	  HAL_UART_Transmit(&huart3, hex, 10, 0xFFFF);
+	  }
 
 	  if (keypad_timeout == KEYPAD_TIMEOUT)
 	  {

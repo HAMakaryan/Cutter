@@ -17,6 +17,9 @@ extern UART_HandleTypeDef huart3;
 extern RTC_HandleTypeDef hrtc;
 extern TIM_HandleTypeDef htim4;
 
+///////////////////////////////////////////////////////////////////////////////
+//							       LCD									     //
+///////////////////////////////////////////////////////////////////////////////
 uint8_t lcd_buf_length = 0;
 uint8_t lcd_write_pnt = 0;
 uint8_t lcd_read_pnt = 0;
@@ -24,8 +27,6 @@ uint8_t lcd_timeout = 0;
 uint8_t completed = 1;
 uint8_t data_arr[4];
 uint16_t lcd_ring_buffer[LCD_BUF_SIZE];
-
-Input_State input_state;
 
 /**
   * @brief	Sends data to LCD with blocking mode.
@@ -97,18 +98,7 @@ void LCD_Init(uint8_t lcd_addr)
 	* Entry mode
 	* Display on/off
 	* Clear Display
-	* Needed to declare LCD_Write_Command() function
-	  to send command to the LCD
 	  */
-	/*// 4-bit mode, 2 lines, 5x7 format
-	LCD_SendCommand(lcd_addr, 0x30); //0b00110000
-	// display & cursor home (keep this!)
-	LCD_SendCommand(lcd_addr, 0x02); //0b00000010
-	// display on, right shift, underline off, blink off
-	LCD_SendCommand(lcd_addr, 0x0C); //0b00001100
-	// clear display (optional here)
-	LCD_SendCommand(lcd_addr, 0x01);*/
-
 	HAL_Delay(50);
 	LCD_SendCommand(lcd_addr, 0x30);
 	HAL_Delay(5);
@@ -116,10 +106,10 @@ void LCD_Init(uint8_t lcd_addr)
 	HAL_Delay(1);
 	LCD_SendCommand(lcd_addr, 0x30);
 	HAL_Delay(10);
-	LCD_SendCommand(lcd_addr, 0x02);	//4 bit mode
+	LCD_SendCommand(lcd_addr, 0x02);
 	HAL_Delay(10);
 
-	LCD_SendCommand(lcd_addr, 0x28);      // configuring LCD as 2 line 5x7 matrix
+	LCD_SendCommand(lcd_addr, 0x28);      // 4 bit mode, 2 line, 5x7 matrix
 	LCD_SendCommand(lcd_addr, 0x0C);      // Display on, Cursor off
 	LCD_SendCommand(lcd_addr, 0x01);      // Clear Display Screen
 	LCD_SendCommand(lcd_addr, 0x06);      // Increment cursor, no shift
@@ -237,18 +227,8 @@ void LCD_Write(uint8_t lcd_addr)
 			if (completed == 1)
 			{
 				completed = 0;
-				//HAL_I2C_Master_Transmit(&hi2c1, lcd_addr, data_arr, 4, 1000);
 
 				HAL_I2C_Master_Transmit_IT(&hi2c1, lcd_addr, data_arr, 4);
-
-				/*for (uint8_t i = 0; i < 4; ++i)
-				{
-					int  num = 32424;
-					char hex[10];
-
-					sprintf(hex, "%02x\n\r", data_arr[i]);
-					HAL_UART_Transmit(&huart3, hex, 10, 0xFFFF);
-				}*/
 			}
 		}
 	}
@@ -288,6 +268,8 @@ void HAL_I2C_ErrorCallback(I2C_HandleTypeDef *hi2c)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
+//									KEYPAD									 //
+///////////////////////////////////////////////////////////////////////////////
 uint8_t keypad_timeout = 0;
 uint8_t pos[ROW_SIZE] = {1, 2, 4, 8};
 uint8_t keypad_buffer[KEYPAD_BUF_SIZE];
@@ -308,6 +290,7 @@ uint8_t old_pressed_key = 0;
 uint8_t debounce = 0;
 uint8_t row_key = 0;
 uint8_t col_key = 0;
+
 /**
   * @brief	Initializes the keypad(4x4).
   * @param	None
@@ -380,8 +363,11 @@ void Set_Rows_Input()
 	GPIOD->MODER &= ~(GPIO_MODER_MODER10_0);
 }
 
-
-
+/**
+  * @brief	Reads all rows.
+  * @param	Pressed rows counter
+  * @retval None
+  */
 void Read_Rows(uint8_t *row_counter)
 {
 	Set_Columns_Output();
@@ -396,6 +382,11 @@ void Read_Rows(uint8_t *row_counter)
 	}
 }
 
+/**
+  * @brief	Reads all columns.
+  * @param	Pressed columns counter
+  * @retval None
+  */
 void Read_Columns(uint8_t *col_counter)
 {
 	Set_Rows_Output();
@@ -444,9 +435,55 @@ uint8_t Read_Keypad_Buffer(uint8_t *buffer)
 }
 
 /**
-  * @brief	Reads keypad data.
+  * @brief	Converts key to char.
   * @param	None
-  * @retval None)
+  * @retval return key char or 0(no pressed)
+  */
+uint8_t Convert_Key_to_Char(uint8_t key)
+{
+	switch(key)
+	{
+		case 0x11:
+			return '1';
+		case 0x12:
+			return '2';
+		case 0x14:
+			return '3';
+		case 0x18:
+			return 'A';
+		case 0x21:
+			return '4';
+		case 0x22:
+			return '5';
+		case 0x24:
+			return '6';
+		case 0x28:
+			return 'B';
+		case 0x41:
+			return '7';
+		case 0x42:
+			return '8';
+		case 0x44:
+			return '9';
+		case 0x48:
+			return 'C';
+		case 0x81:
+			return '*';
+		case 0x82:
+			return '0';
+		case 0x84:
+			return '#';
+		case 0x88:
+			return 'D';
+		default:
+			return 0;
+	}
+}
+
+/**
+  * @brief	Reads pressed key.
+  * @param	None
+  * @retval None
   */
 void Read_Keypad()
 {
@@ -584,285 +621,28 @@ void Read_Keypad()
 			break;
 	}
 }
-/**
-  * @brief	Converts key to char.
-  * @param	None
-  * @retval return key char or 0(no pressed)
-  */
-uint8_t Convert_Key_to_Char(uint8_t key)
-{
-	switch(key)
-	{
-		case 0x11:
-			return '1';
-		case 0x12:
-			return '2';
-		case 0x14:
-			return '3';
-		case 0x18:
-			return 'A';
-		case 0x21:
-			return '4';
-		case 0x22:
-			return '5';
-		case 0x24:
-			return '6';
-		case 0x28:
-			return 'B';
-		case 0x41:
-			return '7';
-		case 0x42:
-			return '8';
-		case 0x44:
-			return '9';
-		case 0x48:
-			return 'C';
-		case 0x81:
-			return '*';
-		case 0x82:
-			return '0';
-		case 0x84:
-			return '#';
-		case 0x88:
-			return 'D';
-		default:
-			return 0;
-	}
-}
 
 ///////////////////////////////////////////////////////////////////////////////
-int32_t encoder_value = 0;
-/**
-  * @brief  Input Capture callback in non-blocking mode
-  * @param  htim TIM IC handle
-  * @retval None
-  */
-void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
-{
-	if (htim->Instance == TIM4)
-	{
-		 if (__HAL_TIM_IS_TIM_COUNTING_DOWN(&htim4))
-		 {
-			 encoder_value--;
-		 } else {
-			 encoder_value++;
-		 }
-	}
-}
-
-/**
-  * @brief	Reads the encoder value to determine
-  * 		the real position of the brush.
-  * @param	None
-  * @retval Can be 0-65535
-  */
-uint16_t Read_Encoder()
-{
-	/* Reads encoder value */
-	return 0;
-}
-
+//							CHANGE COORDINATE								 //
 ///////////////////////////////////////////////////////////////////////////////
-/**
-  * @brief	Saves the brush coordinate to the Backup register.
-  * @param	The address of the Backup register
-  * @param	The value to be saved
-  * @retval None
-  */
-void Save_Coord(float coord)
-{
-	/* To write to the Backup register user needs to
-	 * Unlock the Backup register to access it
-	 * Write value to the Backup Register
-	 * Lock the backup register
-	 */
-	uint16_t l_coord = coord * 10;
-
-	/*set the DBP bit the Power Control
-	Register (PWR_CR) to enable access to the Backup
-	registers and RTC.*/
-	HAL_PWR_EnableBkUpAccess();
-
-	HAL_RTCEx_BKUPWrite(&hrtc, RTC_BKP_DR1, l_coord);
-
-	HAL_PWR_DisableBkUpAccess();
-}
-
-/**
-  * @brief	Reads the value of the Backup register.
-  * @param	Address of the backup register
-  * @retval The real coordinate of the brush
-  */
-uint16_t Read_Coord()
-{
-
-	uint16_t data = HAL_RTCEx_BKUPRead(&hrtc, RTC_BKP_DR1);
-
-	/* Reads real coordinate of the brush */
-	return data;
-}
-
-/**
-  * @brief	Sets the direction and the speed of the inverter.
-  * @param  Direction of the inverter
-  * 		To move the brush in the determined direction.
-  * 		Can be FORWARD, BACK, STOP.
-  * @param	Speed of the inverter
-  * 		To move the brush at the determined speed.
-  * @retval None
-  */
-void Set_Inverter(uint8_t dir, uint16_t speed)
-{
-	/* This function sets the direction
-	 * using Brush_Forward, Brush_Back pins
-	 * Sets the speed by setting PWM or DAC values
-	 */
-}
-
-/**
-  * @brief	Changes the speed of the inverter.
-  * @param	Speed of the inverter
-  * 		To move the brush at the determined speed.
-  * @retval None
-  */
-void Change_Speed(uint16_t speed)
-{
-	/* Changes the speed by changing PWM duty cycle or DAC value */
-}
-
-/**
-  * @brief	Turns off the brake of the brush to move it.
-  * @param	None
-  * @retval None
-  */
-void Brush_Brake_Off()
-{
-	/* Sets Brush_Brake pin */
-}
-
-/**
-  * @brief	Turns on the brake of the brush to fix it.
-  * @param	None
-  * @retval None
-  */
-void Brush_Brake_On()
-{
-	/* Sets Brush_Brake pin */
-}
-
-/**
-  * @brief	Moves the brush in the determined direction.
-  * 		and at the specified speed.
-  * @param	None
-  * @retval None
-  */
-void Move_Brush()
-{
-
-}
-
-/**
-  * @brief	Turns on solid1 pin(Pedal_Out) to activate.
-  *			Cutting and Pressing contacts.
-  * @param	None
-  * @retval None
-  */
-void Solid_On()
-{
-	/* Sets Pedal_Out pin */
-}
-
-/**
-  * @brief	Turns off Pedal_Out pin(solid_n1) to deactivate
-  *			Cutting and Pressing contacts.
-  * @param	None
-  * @retval None
-  */
-void Solid_Off()
-{
-	/* Sets Pedal_Out pin */
-}
-
-/**
-  * @brief	Turns on Pressing output to press the paper.
-  * @param	None
-  * @retval None
-  */
-void Pressing_On()
-{
-	/* Sets Pressing pin */
-}
-
-/**
-  * @brief	Turns off Pressing output to release the paper.
-  * @param	None
-  * @retval None
-  */
-void Pressing_Off()
-{
-	/* Sets Pressing pin */
-}
-
-/**
-  * @brief	Turns on Cutting output (knife) to cut the paper.
-  * @param	None
-  * @retval None
-  */
-void Cutting_On()
-{
-	/* Sets Cutting pin */
-}
-
-/**
-  * @brief	Turns off Cutting output (knife).
-  * @param	None
-  * @retval None
-  */
-void Cutting_Off(void)
-{
-	/* Sets Cutting pin */
-}
-
-/**
-  * @brief	Reads the state of the pedal (pressed or not pressed).
-  * @param	None
-  * @retval Can be 0/1
-  */
-uint8_t Read_Pedal(void)
-{
-	/* Reads Pedal_In pin */
-	return 0;
-}
-
-/**
-  * @brief	Reads the sensors which are attached to the knife
-  * 		to determine the position of the knife.
-  * @param	None
-  * @retval Can be 0-3
-  */
-uint8_t Read_Knife_Sensors(void)
-{
-	/* Read the knife sensors pins Knife_Sensor1, Knife_Sensor2*/
-	return 0;
-}
-
-/**
-  * @brief	Reads Hand_Catch input to detect catching of the brush handle.
-  * @param	None
-  * @retval Can be 0 or 1
-  */
-uint8_t Read_Hand_Catch_Input()
-{
-	return 0;
-}
-
-///////////////////////////////////////////////////////////////////////////////
-uint8_t num_pos = 0;
+uint8_t num_pos 			= 0;
 uint8_t number_accept_count = 0;
-uint8_t mode = 0;
-uint8_t coord_array[6] = {'0','0','0','0','0','0'};
-float set_coord = 0;
+uint8_t mode 				= EDIT;
+uint8_t coord_array[6] 		= {'0','0','0','0','0','0'};
+uint8_t direction 			= 0;
+uint32_t encoder_diff 		= 0;
+float set_coord 			= 0;
+float coord_diff 			= 0;
 
+extern float real_coord;
+
+/**
+  * @brief	Writes data to LCD buffer.
+  * @param	Data to be written
+  * @param  Data size
+  * @param  Cursor position
+  * @retval None
+  */
 void Write_LCD_Buffer(uint8_t* buf, uint8_t size, uint8_t cursor)
 {
 	for (uint8_t i = 0; i < LCD_BUF_SIZE; ++i)
@@ -890,6 +670,11 @@ void Write_LCD_Buffer(uint8_t* buf, uint8_t size, uint8_t cursor)
 	LCD_Write_Buffer(lcd_buf, size);
 }
 
+/**
+  * @brief	Creates set coordinate value from collected digits.
+  * @param	Buffer with digits
+  * @retval Set coordinate
+  */
 float Create_Number(uint8_t* buf)
 {
 	float coord = ((buf[1]-'0')*1000) + ((buf[2]-'0')*100) + ((buf[3]-'0')*10)
@@ -898,6 +683,11 @@ float Create_Number(uint8_t* buf)
 	return coord;
 }
 
+/**
+  * @brief	Collects entered digits.
+  * @param	None
+  * @retval None
+  */
 void Collect_Digits()
 {
 	uint8_t data = 0;
@@ -913,17 +703,36 @@ void Collect_Digits()
 			{
 				if (number_accept_count == 0)
 				{
-					if (num_pos < 5)
-					{
-						num_pos++;
+					uint8_t all_empty = 1;
 
+					if (data == '0')
+					{
 						for (uint8_t i = 1; i < 6; ++i)
 						{
-							coord_array[i] = coord_array[i+1];
+							if (coord_array[i] != '0')
+							{
+								all_empty = 1;
+								break;
+							} else {
+								all_empty = 0;
+							}
 						}
-						coord_array[5] = data;
+					}
 
-						Write_LCD_Buffer(coord_array, 7, 0xC6);
+					if (all_empty == 1)
+					{
+						if (num_pos < 5)
+						{
+							num_pos++;
+
+							for (uint8_t i = 1; i < 6; ++i)
+							{
+								coord_array[i] = coord_array[i+1];
+							}
+							coord_array[5] = data;
+
+							Write_LCD_Buffer(coord_array, 7, 0xC6);
+						}
 					}
 				}
 
@@ -964,23 +773,185 @@ void Collect_Digits()
 				} else if (number_accept_count == 2)
 				{
 					//After pressing # of second time goes BRUSH_MOVE mode
-					mode = BRUSH_MOVE;
 					Write_LCD_Buffer((uint8_t*)"              ", 14, 0xD7);
+
+					//one turn - 1000 encoder value
+					//1000 value - 12mm
+					coord_diff = real_coord - set_coord;
+					encoder_diff = (coord_diff*1000)/12;
+					direction = 0;
+					if (coord_diff < 0)
+					{
+						direction = FORWARD;
+					} else {
+						direction = BACK;
+					}
+
+					mode = BRUSH_MOVE;
 				}
 			}
-		} else if (data == '#')
-		{
-			mode = BRUSH_MOVE;
-			Write_LCD_Buffer((uint8_t*)"              ", 14, 0xD7);
-
-		} else if (data == '*')
-		{
-			mode = EDIT;
-			Write_LCD_Buffer((uint8_t*)"   Edit Mode  ", 14, 0xD7);
 		}
 	}
 }
 
+///////////////////////////////////////////////////////////////////////////////
+//					Brush Moving Mode                                        //
+///////////////////////////////////////////////////////////////////////////////
+int32_t encoder_value = 0;
+
+/**
+  * @brief	Sets the direction and the speed of the inverter.
+  * @param  Direction of the inverter
+  * 		To move the brush in the determined direction.
+  * 		Can be FORWARD, BACK, STOP.
+  * @param	Speed of the inverter
+  * 		To move the brush at the determined speed.
+  * @retval None
+  */
+void Set_Inverter(uint8_t dir, uint16_t speed)
+{
+	if (dir == FORWARD)
+	{
+		HAL_GPIO_WritePin(Brush_Forward_GPIO_Port, Brush_Forward_Pin, GPIO_PIN_RESET);
+		HAL_GPIO_WritePin(Brush_Back_GPIO_Port,	Brush_Back_Pin, GPIO_PIN_SET);
+	} else if (dir == BACK) {
+		HAL_GPIO_WritePin(Brush_Forward_GPIO_Port, Brush_Forward_Pin, GPIO_PIN_SET);
+		HAL_GPIO_WritePin(Brush_Back_GPIO_Port, Brush_Back_Pin, GPIO_PIN_RESET);
+	} else if (dir == STOP) {
+		HAL_GPIO_WritePin(Brush_Forward_GPIO_Port, Brush_Forward_Pin, GPIO_PIN_SET);
+		HAL_GPIO_WritePin(Brush_Back_GPIO_Port, Brush_Back_Pin, GPIO_PIN_SET);
+	}
+}
+
+/**
+  * @brief	Changes the speed of the inverter.
+  * @param	Speed of the inverter
+  * 		To move the brush at the determined speed.
+  * @retval None
+  */
+void Change_Speed(uint16_t speed)
+{
+	/* Changes the speed by changing PWM duty cycle or DAC value */
+}
+
+/**
+  * @brief	Unlocks the brush to move it.
+  * @param	None
+  * @retval None
+  */
+void Brush_Unlock()
+{
+	 HAL_GPIO_WritePin(Brush_Lock_GPIO_Port, Brush_Lock_Pin, GPIO_PIN_RESET);
+}
+
+/**
+  * @brief	Locks the brush to fix it.
+  * @param	None
+  * @retval None
+  */
+void Brush_Lock()
+{
+	HAL_GPIO_WritePin(Brush_Lock_GPIO_Port, Brush_Lock_Pin, GPIO_PIN_SET);
+}
+
+/**
+  * @brief	Saves the brush coordinate to the Backup register.
+  * @param	The address of the Backup register
+  * @param	The value to be saved
+  * @retval None
+  */
+void Save_Coord(float coord)
+{
+	/* To write to the Backup register user needs to
+	 * Unlock the Backup register to access it
+	 * Write value to the Backup Register
+	 * Lock the backup register
+	 */
+	uint16_t l_coord = coord * 10;
+
+	/*set the DBP bit the Power Control
+	Register (PWR_CR) to enable access to the Backup
+	registers and RTC.*/
+	HAL_PWR_EnableBkUpAccess();
+
+	HAL_RTCEx_BKUPWrite(&hrtc, RTC_BKP_DR1, l_coord);
+
+	HAL_PWR_DisableBkUpAccess();
+}
+
+/**
+  * @brief  Input Capture callback in non-blocking mode
+  * @param  htim TIM IC handle
+  * @retval None
+  */
+void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
+{
+	if (htim->Instance == TIM4)
+	{
+		 if (__HAL_TIM_IS_TIM_COUNTING_DOWN(&htim4))
+		 {
+			 encoder_value--;
+		 } else {
+			 encoder_value++;
+		 }
+	}
+}
+
+/**
+  * @brief	Reads the value of the Backup register.
+  * @param	Address of the backup register
+  * @retval The real coordinate of the brush
+  */
+uint16_t Read_Coord()
+{
+
+	uint16_t data = HAL_RTCEx_BKUPRead(&hrtc, RTC_BKP_DR1);
+
+	/* Reads real coordinate of the brush */
+	return data;
+}
+
+/**
+  * @brief	Moves the brush in the determined direction.
+  * 		and at the specified speed.
+  * @param	None
+  * @retval None
+  */
+void Move_Brush()
+{
+	if (mode == BRUSH_MOVE)
+	{
+		Brush_Unlock();
+
+		//if board is powered
+		if (HAL_GPIO_ReadPin(Power_In_GPIO_Port, Power_In_Pin) == 1)
+		{
+			if ((encoder_value - encoder_diff) > 50000)
+			{
+				Set_Inverter(direction, 100);
+			} else if ((encoder_value - encoder_diff) <= 50000) {
+				Set_Inverter(direction, 100);
+			} else {
+				Set_Inverter(STOP, 100);
+				Brush_Lock();
+				Save_Coord(set_coord);
+				mode = CUTTING;
+
+			}
+		}
+	}
+}
+
+///////////////////////////////////////////////////////////////////////////////
+//					     CUTTING MODE										 //
+///////////////////////////////////////////////////////////////////////////////
+Input_State input_state;
+
+/**
+  * @brief	Reads specified inputs.
+  * @param	None
+  * @retval None
+  */
 void Read_Inputs(void)
 {
 	Read_Pin(Cutting_Buttons_GPIO_Port, Cutting_Buttons_Pin, &input_state.cut_cnt_for_st0,
@@ -993,7 +964,16 @@ void Read_Inputs(void)
  &input_state.hand_catch_cnt_for_st1,	&input_state.hand_catch_is_pressed, 1);
 }
 
-// Read desired button
+/**
+  * @brief	Reads the specified input state.
+  * @param	Port of specified GPIO
+  * @param	Pin of specified GPIO
+  * @param	Pointer to save counter of 0 state
+  * @param	Pointer to save counter of 1 state
+  * param	Pointer to save pressed(1) or no pressed(0) state
+  * param	State by which pins is turned on. 0 or 1
+  * @retval None
+  */
 void Read_Pin(GPIO_TypeDef* GPIOx, uint16_t GPIO_Pin, uint8_t * st0_counter,
 				uint8_t * st1_counter, uint8_t * is_pressed, uint8_t on_state)
 {
@@ -1032,4 +1012,60 @@ void Read_Pin(GPIO_TypeDef* GPIOx, uint16_t GPIO_Pin, uint8_t * st0_counter,
 			*is_pressed = 0;
 		}
 	}
+}
+
+/**
+  * @brief	Activates cutting buttons.
+  * @param	None
+  * @retval None
+  */
+void Cutting_Button_On()
+{
+	HAL_GPIO_WritePin(Cutting_Buttons_Allow_GPIO_Port, Cutting_Buttons_Allow_Pin, GPIO_PIN_RESET);
+}
+
+/**
+  * @brief	Deactivate cutting buttons.
+  * @param	None
+  * @retval None
+  */
+void Cutting_Button_Off()
+{
+	HAL_GPIO_WritePin(Cutting_Buttons_Allow_GPIO_Port, Cutting_Buttons_Allow_Pin, GPIO_PIN_SET);
+}
+
+/**
+  * @brief	Turns on Cutting output (knife) to cut the paper.
+  * @param	None
+  * @retval None
+  */
+void Cutting_On()
+{
+	HAL_GPIO_WritePin(Cutting_GPIO_Port, Cutting_Pin, GPIO_PIN_RESET);
+}
+
+/**
+  * @brief	Turns off Cutting output (knife).
+  * @param	None
+  * @retval None
+  */
+void Cutting_Off(void)
+{
+	HAL_GPIO_WritePin(Cutting_GPIO_Port, Cutting_Pin, GPIO_PIN_SET);
+}
+
+/**
+  * @brief	Reads the sensors which are attached to the knife
+  * 		to determine the position of the knife.
+  * @param	None
+  * @retval Can 0,1
+  */
+uint8_t Read_Knife_Sensors(void)
+{
+	if (HAL_GPIO_ReadPin(Knife_Sensor1_GPIO_Port, Knife_Sensor1_Pin) == 0)
+	{
+		/* Read the knife sensors pins Knife_Sensor1, Knife_Sensor2*/
+		return 1;
+	}
+	return 0;
 }

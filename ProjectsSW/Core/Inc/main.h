@@ -65,6 +65,8 @@ void Error_Handler(void);
 #define DB7_GPIO_Port GPIOF
 #define DB6_Pin GPIO_PIN_5
 #define DB6_GPIO_Port GPIOF
+#define Power_In_Pin GPIO_PIN_9
+#define Power_In_GPIO_Port GPIOF
 #define Lock_Pin GPIO_PIN_10
 #define Lock_GPIO_Port GPIOF
 #define MCO_Pin GPIO_PIN_0
@@ -101,12 +103,12 @@ void Error_Handler(void);
 #define Press_Again_GPIO_Port GPIOE
 #define Hand_Catch_Pin GPIO_PIN_9
 #define Hand_Catch_GPIO_Port GPIOE
-#define Brush_Back_Pin GPIO_PIN_12
-#define Brush_Back_GPIO_Port GPIOE
+#define Brush_Forward_Pin GPIO_PIN_12
+#define Brush_Forward_GPIO_Port GPIOE
 #define Cutting_Pin GPIO_PIN_13
 #define Cutting_GPIO_Port GPIOE
-#define Brush_Forward_Pin GPIO_PIN_14
-#define Brush_Forward_GPIO_Port GPIOE
+#define Brush_Back_Pin GPIO_PIN_14
+#define Brush_Back_GPIO_Port GPIOE
 #define Brush_Lock_Pin GPIO_PIN_15
 #define Brush_Lock_GPIO_Port GPIOE
 #define DB0_Pin GPIO_PIN_10

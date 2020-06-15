@@ -50,6 +50,10 @@
 #define COL3	4
 #define COL4	8
 
+#define STOP	0
+#define FORWARD	1
+#define	BACK	2
+
 void LCD_Init(uint8_t lcd_addr);
 void LCD_Write(uint8_t lcd_addr);
 void Collect_Digits(void);

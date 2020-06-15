@@ -61,6 +61,7 @@ extern TIM_HandleTypeDef htim4;
 /* USER CODE BEGIN EV */
 extern uint8_t keypad_timeout;
 extern uint8_t lcd_timeout;
+extern uint8_t encoder_time;
 /* USER CODE END EV */
 
 /******************************************************************************/
@@ -192,6 +193,11 @@ void SysTick_Handler(void)
   if (keypad_timeout < KEYPAD_TIMEOUT)
   {
 	  keypad_timeout++;
+  }
+
+  if (encoder_time < 100)
+  {
+	  encoder_time++;
   }
   /* USER CODE END SysTick_IRQn 0 */
   HAL_IncTick();
