@@ -9,6 +9,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include "main.h"
 #include "cutter.h"
 
@@ -16,6 +17,7 @@ extern I2C_HandleTypeDef hi2c1;
 extern UART_HandleTypeDef huart3;
 extern RTC_HandleTypeDef hrtc;
 extern TIM_HandleTypeDef htim4;
+extern DAC_HandleTypeDef hdac;
 
 ///////////////////////////////////////////////////////////////////////////////
 //							       LCD									     //
@@ -775,18 +777,22 @@ void Collect_Digits()
 					//After pressing # of second time goes BRUSH_MOVE mode
 					Write_LCD_Buffer((uint8_t*)"              ", 14, 0xD7);
 
-					//one turn - 1000 encoder value
-					//1000 value - 12mm
+					//Gets difference between real and set coordinates
 					coord_diff = real_coord - set_coord;
-					encoder_diff = (coord_diff*1000)/12;
-					direction = 0;
+					//Calculates encoder value for coordinate difference
+					encoder_diff = (abs(coord_diff)*1000)/12; //1000 value - 12mm
+					//Defines direction
 					if (coord_diff < 0)
 					{
 						direction = FORWARD;
 					} else {
 						direction = BACK;
 					}
-
+					//Unlock brush to move it
+					Brush_Unlock();
+					HAL_DAC_Start(&hdac, DAC_CHANNEL_1);
+					HAL_DAC_SetValue(&hdac, DAC_CHANNEL_1, DAC_ALIGN_12B_R, 0);
+					//Passes to Brush Move mode
 					mode = BRUSH_MOVE;
 				}
 			}
@@ -798,6 +804,7 @@ void Collect_Digits()
 //					Brush Moving Mode                                        //
 ///////////////////////////////////////////////////////////////////////////////
 int32_t encoder_value = 0;
+uint16_t speed = 0;
 
 /**
   * @brief	Sets the direction and the speed of the inverter.
@@ -821,6 +828,9 @@ void Set_Inverter(uint8_t dir, uint16_t speed)
 		HAL_GPIO_WritePin(Brush_Forward_GPIO_Port, Brush_Forward_Pin, GPIO_PIN_SET);
 		HAL_GPIO_WritePin(Brush_Back_GPIO_Port, Brush_Back_Pin, GPIO_PIN_SET);
 	}
+
+	//Set dac value
+	HAL_DAC_SetValue(&hdac, DAC_CHANNEL_1, DAC_ALIGN_12B_R, speed);
 }
 
 /**
@@ -921,24 +931,33 @@ void Move_Brush()
 {
 	if (mode == BRUSH_MOVE)
 	{
-		Brush_Unlock();
-
-		//if board is powered
-		if (HAL_GPIO_ReadPin(Power_In_GPIO_Port, Power_In_Pin) == 1)
-		{
-			if ((encoder_value - encoder_diff) > 50000)
+		//if board is powered and brush is unlocked
+		//if (HAL_GPIO_ReadPin(Power_In_GPIO_Port, Power_In_Pin) == 1 &&
+		//		HAL_GPIO_ReadPin(Brush_Lock_GPIO_Port, Brush_Lock_Pin) == 0)
+		//{
+			if ((encoder_diff - abs(encoder_value)) > COORD_VALUE)
 			{
-				Set_Inverter(direction, 100);
-			} else if ((encoder_value - encoder_diff) <= 50000) {
-				Set_Inverter(direction, 100);
+				Set_Inverter(direction, speed);
+			} else if (((encoder_diff - abs(encoder_value)) <= COORD_VALUE) &&
+					((encoder_diff - abs(encoder_value)) > 5)) {
+				Set_Inverter(direction, speed);
 			} else {
-				Set_Inverter(STOP, 100);
+				//Turns off inverter
+				Set_Inverter(STOP, speed);
+				//Locks brush to fix it
 				Brush_Lock();
-				Save_Coord(set_coord);
+				if (real_coord > set_coord)
+				{
+					real_coord = real_coord - ((float)(12*abs(encoder_value))/1000);
+				} else {
+					real_coord = real_coord + ((float)(12*abs(encoder_value))/1000);
+				}
+				//Saves real coordinate to backup register
+				Save_Coord(real_coord);
+				//Passes to CUTTING mode
 				mode = CUTTING;
-
 			}
-		}
+		//}
 	}
 }
 
@@ -946,6 +965,9 @@ void Move_Brush()
 //					     CUTTING MODE										 //
 ///////////////////////////////////////////////////////////////////////////////
 Input_State input_state;
+uint8_t cut_is_done = 0;
+uint16_t delay_for_cutting_buttons = 0;
+uint16_t delay_for_cutting = 0;
 
 /**
   * @brief	Reads specified inputs.
@@ -1009,6 +1031,10 @@ void Read_Pin(GPIO_TypeDef* GPIOx, uint16_t GPIO_Pin, uint8_t * st0_counter,
 		}
 		if (*st1_counter == DEBOUNCE_TIME)
 		{
+			if (GPIOx == Cutting_Buttons_GPIO_Port && GPIO_Pin == Cutting_Buttons_Pin)
+			{
+				cut_is_done = 0;
+			}
 			*is_pressed = 0;
 		}
 	}
@@ -1069,3 +1095,48 @@ uint8_t Read_Knife_Sensors(void)
 	}
 	return 0;
 }
+
+void Check_Pedal()
+{
+	//if pedal is pressed
+	if (input_state.pedal_is_pressed == 1)
+	{
+		mode = CUTTING;
+
+		//if passed 5 second
+		if (delay_for_cutting_buttons == 5000)
+		{
+			//Activates cuttings button
+			Cutting_Button_On();
+
+			//if cutting buttons is pressed
+			if ((input_state.cut_is_pressed == 1) && (cut_is_done == 0))
+			{
+				//if passed 3 second
+				if (delay_for_cutting == 3000)
+				{
+					//Reads knife sensors
+					if (Read_Knife_Sensors() == 1)
+					{
+						//Cuts the paper
+						Cutting_On();
+					} else {
+						Cutting_Off();
+						//Deactivates cutting buttons
+						Cutting_Button_Off();
+						cut_is_done = 1;
+					}
+				}
+			} else {
+				delay_for_cutting = 0;
+			}
+		}
+	} else {
+		delay_for_cutting_buttons = 0;
+		delay_for_cutting = 0;
+	}
+}
+
+///////////////////////////////////////////////////////////////////////////////
+//								Main Task									 //
+///////////////////////////////////////////////////////////////////////////////

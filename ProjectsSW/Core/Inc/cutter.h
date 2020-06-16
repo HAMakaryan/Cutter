@@ -54,6 +54,13 @@
 #define FORWARD	1
 #define	BACK	2
 
+#define RAMP_UP		20
+#define RAMP_DOWN	20
+
+#define COORD_VALUE	50000
+#define LIMIT_UP
+#define LIMIT_DOWN
+
 void LCD_Init(uint8_t lcd_addr);
 void LCD_Write(uint8_t lcd_addr);
 void Collect_Digits(void);
@@ -61,13 +68,9 @@ void Keypad_Init(void);
 void Save_Coord(float coord);
 void Set_Inverter(uint8_t dir, uint16_t speed);
 void Change_Speed(uint16_t speed);
-void Brush_Brake_Off(void);
-void Brush_Brake_On(void);
+void Brush_Unlock(void);
+void Brush_Lock(void);
 void Move_Brush(void);
-void Solid_On(void);
-void Solid_Off(void);
-void Pressing_On(void);
-void Pressing_Off(void);
 void Cutting_On(void);
 void Cutting_Off(void);
 void Read_Keypad(void);

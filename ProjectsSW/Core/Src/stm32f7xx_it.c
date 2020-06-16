@@ -62,6 +62,9 @@ extern TIM_HandleTypeDef htim4;
 extern uint8_t keypad_timeout;
 extern uint8_t lcd_timeout;
 extern uint8_t encoder_time;
+extern uint16_t delay_for_cutting_buttons;
+extern uint16_t delay_for_cutting;
+extern Input_State input_state;
 /* USER CODE END EV */
 
 /******************************************************************************/
@@ -199,6 +202,20 @@ void SysTick_Handler(void)
   {
 	  encoder_time++;
   }
+
+  if (input_state.pedal_is_pressed == 1)
+  {
+	  if (delay_for_cutting_buttons < 5000)
+	  {
+		  delay_for_cutting_buttons++;
+	  }
+
+	  if (delay_for_cutting < 3000)
+	  {
+		  delay_for_cutting++;
+	  }
+  }
+
   /* USER CODE END SysTick_IRQn 0 */
   HAL_IncTick();
   /* USER CODE BEGIN SysTick_IRQn 1 */

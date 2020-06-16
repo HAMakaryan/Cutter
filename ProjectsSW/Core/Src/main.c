@@ -114,7 +114,7 @@ int main(void)
   MX_DAC_Init();
   MX_RTC_Init();
   /* USER CODE BEGIN 2 */
-  //Save_Coord(300.5);
+  //Save_Coord(0);
   real_coord = (float)Read_Coord()/10;
   set_coord = real_coord;
 
@@ -169,6 +169,8 @@ int main(void)
 		  Read_Keypad();
 		  Read_Inputs();
 	  }
+
+	  Move_Brush();
 
     /* USER CODE END WHILE */
 
