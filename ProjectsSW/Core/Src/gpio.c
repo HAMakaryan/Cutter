@@ -56,16 +56,18 @@ void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(GPIOF, DB7_Pin|DB6_Pin|Lock_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, DB4_Pin|DB3_Pin|DB0_Pin|Relay_4_Pin 
-                          |LD3_Pin|DB5_Pin|DB1_Pin|DB2_Pin 
-                          |LD2_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOB, DB4_Pin|DB3_Pin|DB0_Pin|LD3_Pin 
+                          |DB5_Pin|DB1_Pin|DB2_Pin|LD2_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOE, Press_Again_Pin|Brush_Forward_Pin|Cutting_Pin|Brush_Back_Pin 
-                          |Brush_Lock_Pin, GPIO_PIN_RESET);
+                          |Brush_Lock_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(Cutting_Buttons_Allow_GPIO_Port, Cutting_Buttons_Allow_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(Relay_4_GPIO_Port, Relay_4_Pin, GPIO_PIN_SET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(Cutting_Buttons_Allow_GPIO_Port, Cutting_Buttons_Allow_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(USB_PowerSwitchOn_GPIO_Port, USB_PowerSwitchOn_Pin, GPIO_PIN_RESET);

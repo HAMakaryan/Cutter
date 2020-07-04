@@ -138,7 +138,6 @@ int main(void)
 
   LCD_SendCommand(LCD_ADDR, 0xD7);
   LCD_SendString(LCD_ADDR, "Are you sure?");
-  number_accept_count = 1;
 
   Keypad_Init();
   HAL_NVIC_SetPriority(I2C1_EV_IRQn, 0, 0);
@@ -152,25 +151,7 @@ int main(void)
 
   while (1)
   {
-	  Collect_Digits();
-	  LCD_Write(LCD_ADDR);
-
-	  if (encoder_time == 100)
-	  {
-		  	  char hex[10];
-
-		  	  sprintf(hex, "%d\n\r", encoder_value);
-		  	  HAL_UART_Transmit(&huart3, hex, 10, 0xFFFF);
-	  }
-
-	  if (keypad_timeout == KEYPAD_TIMEOUT)
-	  {
-		  keypad_timeout = 0;
-		  Read_Keypad();
-		  Read_Inputs();
-	  }
-
-	  Move_Brush();
+	  main_task();
 
     /* USER CODE END WHILE */
 

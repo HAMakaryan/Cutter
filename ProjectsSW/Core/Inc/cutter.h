@@ -31,9 +31,11 @@
 #define ERROR 	1
 #define SINGLE	2
 
-#define EDIT 		1
-#define BRUSH_MOVE	2
-#define CUTTING		3
+#define APPLY_MODE	1
+#define EDIT 		2
+#define BRUSH_MOVE	3
+#define CHECK_PEDAL	4
+#define CUTTING		5
 
 #define PRESSED		1
 #define RELEASED	0
@@ -50,16 +52,16 @@
 #define COL3	4
 #define COL4	8
 
-#define STOP	0
 #define FORWARD	1
 #define	BACK	2
+#define STOP	3
 
 #define RAMP_UP		20
 #define RAMP_DOWN	20
 
-#define COORD_VALUE	50000
-#define LIMIT_UP
-#define LIMIT_DOWN
+#define COORD_DIFF	50000
+#define LIMIT_UP	2000
+#define LIMIT_DOWN	1
 
 void LCD_Init(uint8_t lcd_addr);
 void LCD_Write(uint8_t lcd_addr);
@@ -67,7 +69,7 @@ void Collect_Digits(void);
 void Keypad_Init(void);
 void Save_Coord(float coord);
 void Set_Inverter(uint8_t dir, uint16_t speed);
-void Change_Speed(uint16_t speed);
+void Change_Speed(uint16_t* speed);
 void Brush_Unlock(void);
 void Brush_Lock(void);
 void Move_Brush(void);
