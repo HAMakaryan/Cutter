@@ -649,12 +649,12 @@ extern float real_coord;
   */
 void Write_LCD_Buffer(uint8_t* buf, uint8_t size, uint8_t cursor)
 {
-	for (uint8_t i = 0; i < LCD_BUF_SIZE; ++i)
+	/*for (uint8_t i = 0; i < LCD_BUF_SIZE; ++i)
 	{
 		lcd_ring_buffer[i] = 0;
-	}
-	lcd_write_pnt = lcd_read_pnt = 0;
-	lcd_buf_length = 0;
+	}*/
+	//lcd_write_pnt = lcd_read_pnt = 0;
+	//lcd_buf_length = 0;
 
 	uint16_t lcd_buf[LCD_BUF_SIZE];
 	lcd_buf[0] = cursor;
@@ -704,8 +704,9 @@ void Check_Pressed_Key()
 		{
 			if (data == '*')
 			{
+				Write_LCD_Buffer((uint8_t*)" 000000", 7, 0xC6);
 				Write_LCD_Buffer((uint8_t*)"   Edit Mode  ", 14, 0xD7);
-				//To do zroyacnel bolor tver@
+
 				//Goes to edit mode
 				mode = EDIT;
 
@@ -791,7 +792,7 @@ void Check_Pressed_Key()
 				} else if (number_accept_count == 2)
 				{
 					//After pressing # of second time goes BRUSH_MOVE mode
-					Write_LCD_Buffer((uint8_t*)"              ", 14, 0xD7);
+					Write_LCD_Buffer((uint8_t*)" Brush Moving Mode", 18, 0xD6);
 
 					//Gets difference between real and set coordinates
 					coord_diff = real_coord - set_coord;
@@ -1015,10 +1016,26 @@ void Move_Brush()
 					real_coord = initial_coord + ((float)(12*abs(encoder_value))/1000);
 				}
 
-				//Passes to CHECK_PEDAL mode
-				mode = CHECK_PEDAL;
+
 
 				encoder_value = 0;
+
+				uint8_t temp_buf[10];
+				sprintf(temp_buf, "%6.1f", real_coord);
+				for (int i = 0; i < strlen(temp_buf); ++i)
+				{
+				  if (temp_buf[i] == 0x20)
+				  {
+					  temp_buf[i] = '0';
+				  }
+				}
+				LCD_SendCommand(LCD_ADDR, 0x80);
+				LCD_SendString(LCD_ADDR, "Real  ");
+				LCD_SendString(LCD_ADDR, temp_buf);
+				Write_LCD_Buffer((uint8_t*)"                  ", 18, 0xD6);
+
+				//Passes to CHECK_PEDAL mode
+				mode = CHECK_PEDAL;
 			}
 		}
 	}
@@ -1151,7 +1168,7 @@ void Cutting_Off(void)
   */
 uint8_t Read_Knife_Sensors(void)
 {
-	if (HAL_GPIO_ReadPin(Knife_Sensor1_GPIO_Port, Knife_Sensor1_Pin) == 0)
+	if (HAL_GPIO_ReadPin(Knife_Sensor1_GPIO_Port, Knife_Sensor1_Pin) == 1)
 	{
 		/* Read the knife sensors pins Knife_Sensor1, Knife_Sensor2*/
 		return 1;
@@ -1159,11 +1176,17 @@ uint8_t Read_Knife_Sensors(void)
 	return 0;
 }
 
+uint8_t pedal_is_pressed = 0;
+uint8_t temp = 0;
+uint8_t old_temp = 0;
+
 void Check_Pedal()
 {
 	//if pedal is pressed
 	if (input_state.pedal_is_pressed == 1)
 	{
+		pedal_is_pressed = 1;
+
 		//if passed 5 second
 		if (delay_for_cutting_buttons == 5000)
 		{
@@ -1181,22 +1204,50 @@ void Check_Pedal()
 					{
 						//Cuts the paper
 						Cutting_On();
+
+						temp = 1;
+						if (old_temp != temp)
+						{
+							Write_LCD_Buffer((uint8_t*)"       Cutting       ", 21, 0xD4);
+						}
 					} else {
-						Cutting_Off();
+
 						//Deactivates cutting buttons
 						Cutting_Button_Off();
+						Cutting_Off();
 						cut_is_done = 1;
+
+						temp = 2;
+						if (old_temp != temp)
+						{
+							Write_LCD_Buffer((uint8_t*)"     Cut is done     ", 21, 0xD4);
+						}
+
 					}
 				}
-			} else {
+			} else if ((input_state.cut_is_pressed == 0) && (cut_is_done == 0) ) {
 				delay_for_cutting = 0;
+
+				temp = 3;
+				if (old_temp != temp)
+				{
+					Write_LCD_Buffer((uint8_t*)"     Cutting Mode    ", 21, 0xD4);
+				}
 			}
 		}
 	} else {
-		delay_for_cutting_buttons = 0;
-		delay_for_cutting = 0;
-		Cutting_Button_Off();
+		if (pedal_is_pressed == 1)
+		{
+			old_temp = temp = 0;
+			pedal_is_pressed = 0;
+			delay_for_cutting_buttons = 0;
+			delay_for_cutting = 0;
+			Cutting_Button_Off();
+			Write_LCD_Buffer((uint8_t*)" Are you sure?", 14, 0xD7);
+			mode = APPLY_MODE;
+		}
 	}
+	old_temp = temp;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1223,6 +1274,18 @@ void Check_Hand_Catch()
 				real_coord = real_coord + temp_value;
 			}
 
+			uint8_t temp_buf[10];
+			sprintf(temp_buf, "%6.1f", real_coord);
+			for (int i = 0; i < strlen(temp_buf); ++i)
+			{
+			  if (temp_buf[i] == 0x20)
+			  {
+				  temp_buf[i] = '0';
+			  }
+			}
+			LCD_SendCommand(LCD_ADDR, 0x80);
+			LCD_SendString(LCD_ADDR, "Real  ");
+			LCD_SendString(LCD_ADDR, temp_buf);
 			Save_Coord(real_coord);
 			encoder_value = 0;
 		}
@@ -1234,7 +1297,7 @@ void Check_Hand_Catch()
 ///////////////////////////////////////////////////////////////////////////////
 void main_task()
 {
-	  /*if (mode == APPLY_MODE || mode == EDIT)
+	  if (mode == APPLY_MODE || mode == EDIT)
 	  {
 		  Check_Pressed_Key();
 	  } else if (mode == BRUSH_MOVE)
@@ -1243,7 +1306,7 @@ void main_task()
 	  } else if (mode == CHECK_PEDAL)
 	  {
 		  Check_Pedal();
-	  }*/
+	  }
 
 	  Check_Hand_Catch();
 	  LCD_Write(LCD_ADDR);
