@@ -62,6 +62,8 @@ extern uint8_t number_accept_count;
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
+static void Read_Real_Coord(void);
+static void Print_Initial_Status();
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -114,36 +116,17 @@ int main(void)
   MX_DAC_Init();
   MX_RTC_Init();
   /* USER CODE BEGIN 2 */
-  //Save_Coord(0);
-  real_coord = (float)Read_Coord()/10;
-  set_coord = real_coord;
-
-  LCD_Init(LCD_ADDR);
-  char buf[10];
-  sprintf(buf, "%6.1f", real_coord);
-  for (int i = 0; i < strlen(buf); ++i)
-  {
-	  if (buf[i] == 0x20)
-	  {
-		  buf[i] = '0';
-	  }
-  }
-  LCD_SendCommand(LCD_ADDR, 0x80);
-  LCD_SendString(LCD_ADDR, "Real  ");
-  LCD_SendString(LCD_ADDR, buf);
-
-  LCD_SendCommand(LCD_ADDR, 0xC0);
-  LCD_SendString(LCD_ADDR, "Set   ");
-  LCD_SendString(LCD_ADDR, buf);
-
-  LCD_SendCommand(LCD_ADDR, 0xD7);
-  LCD_SendString(LCD_ADDR, "Are you sure?");
-
+  //Reads real coord from backup register
+  Read_Real_Coord();
+  //Prints real and set coords to LCD
+  Print_Initial_Status();
+  //Inits 4x4 Keypad
   Keypad_Init();
+  //Enables interrupt for LCD
   HAL_NVIC_SetPriority(I2C1_EV_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(I2C1_EV_IRQn);
+  //Starts encoder
   HAL_TIM_Encoder_Start_IT(&htim4, TIM_CHANNEL_1);
-
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -151,7 +134,7 @@ int main(void)
 
   while (1)
   {
-	  main_task();
+	  Main_Task();
 
     /* USER CODE END WHILE */
 
@@ -226,7 +209,36 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
+static void Read_Real_Coord()
+{
+	//Save_Coord(0);
+	real_coord = (float)Read_Coord()/10;
+	set_coord = real_coord;
+}
 
+static void Print_Initial_Status()
+{
+	LCD_Init(LCD_ADDR);
+	char buf[10];
+	sprintf(buf, "%6.1f", real_coord);
+	for (int i = 0; i < strlen(buf); ++i)
+	{
+	  if (buf[i] == 0x20)
+	  {
+		  buf[i] = '0';
+	  }
+	}
+	LCD_SendCommand(LCD_ADDR, 0x80);
+	LCD_SendString(LCD_ADDR, "Real  ");
+	LCD_SendString(LCD_ADDR, buf);
+
+	LCD_SendCommand(LCD_ADDR, 0xC0);
+	LCD_SendString(LCD_ADDR, "Set   ");
+	LCD_SendString(LCD_ADDR, buf);
+
+	LCD_SendCommand(LCD_ADDR, 0xD7);
+	LCD_SendString(LCD_ADDR, "Are you sure?");
+}
 /* USER CODE END 4 */
 
 /**

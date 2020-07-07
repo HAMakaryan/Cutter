@@ -28,7 +28,7 @@ uint8_t lcd_read_pnt = 0;
 uint8_t lcd_timeout = 0;
 uint8_t completed = 1;
 uint8_t data_arr[4];
-uint16_t lcd_ring_buffer[LCD_BUF_SIZE];
+uint16_t lcd_ring_buffer[64];
 
 /**
   * @brief	Sends data to LCD with blocking mode.
@@ -274,10 +274,10 @@ void HAL_I2C_ErrorCallback(I2C_HandleTypeDef *hi2c)
 ///////////////////////////////////////////////////////////////////////////////
 uint8_t keypad_timeout = 0;
 uint8_t pos[ROW_SIZE] = {1, 2, 4, 8};
-uint8_t keypad_buffer[KEYPAD_BUF_SIZE];
 uint8_t keypad_buf_length = 0;
 uint8_t keypad_wr_pnt = 0;
 uint8_t keypad_rd_pnt = 0;
+char 	keypad_buffer[KEYPAD_BUF_SIZE];
 
 GPIO_TypeDef* row_gpio_port[ROW_SIZE] = {Row0_GPIO_Port, Row1_GPIO_Port,
 										Row2_GPIO_Port, Row3_GPIO_Port};
@@ -408,7 +408,7 @@ void Read_Columns(uint8_t *col_counter)
   * @param	Data
   * @retval	None
   */
-void Keypad_Write_Buffer(uint8_t data)
+void Keypad_Write_Buffer(char data)
 {
 	keypad_buffer[keypad_wr_pnt] = data;
 	keypad_wr_pnt++;
@@ -424,9 +424,9 @@ void Keypad_Write_Buffer(uint8_t data)
   * @param	Buffer
   * @retval	Read data
   */
-uint8_t Read_Keypad_Buffer(uint8_t *buffer)
+char Read_Keypad_Buffer(char *buffer)
 {
-	uint8_t data = keypad_buffer[keypad_rd_pnt];
+	char data = keypad_buffer[keypad_rd_pnt];
 	keypad_buf_length--;
 	keypad_rd_pnt++;
 	if (keypad_rd_pnt == KEYPAD_BUF_SIZE)
@@ -441,7 +441,7 @@ uint8_t Read_Keypad_Buffer(uint8_t *buffer)
   * @param	None
   * @retval return key char or 0(no pressed)
   */
-uint8_t Convert_Key_to_Char(uint8_t key)
+char Convert_Key_to_Char(uint8_t key)
 {
 	switch(key)
 	{
@@ -605,7 +605,7 @@ void Read_Keypad()
 					debounce = 0;
 
 					//Converts pressed key code to character
-					uint8_t data = Convert_Key_to_Char(new_pressed_key);
+					char data = Convert_Key_to_Char(new_pressed_key);
 
 					new_pressed_key = 0;
 
@@ -630,8 +630,8 @@ void Read_Keypad()
 uint8_t num_pos 			= 0;
 uint8_t number_accept_count = 0;
 uint8_t mode 				= APPLY_MODE;
-uint8_t coord_array[6] 		= {'0','0','0','0','0','0'};
 uint8_t direction 			= 0;
+char coord_array[6] 		= {'0','0','0','0','0','0'};
 uint32_t encoder_diff 		= 0;
 float set_coord 			= 0;
 float initial_coord			= 0;
@@ -647,7 +647,7 @@ extern float real_coord;
   * @param  Cursor position
   * @retval None
   */
-void Write_LCD_Buffer(uint8_t* buf, uint8_t size, uint8_t cursor)
+void Write_LCD_Buffer(char* buf, uint8_t size, uint8_t cursor)
 {
 	/*for (uint8_t i = 0; i < LCD_BUF_SIZE; ++i)
 	{
@@ -664,12 +664,15 @@ void Write_LCD_Buffer(uint8_t* buf, uint8_t size, uint8_t cursor)
 		lcd_buf[i] = buf[i] | 0x0100;
 	}
 
-	if (cursor == 0xC6)
+	if (buf[5] != '.')
 	{
-		uint16_t temp = 0;
-		temp = lcd_buf[5];
-		lcd_buf[5] = '.' | 0x0100;
-		lcd_buf[6] = temp;
+		if (cursor == ROW_2 || cursor == ROW_1)
+		{
+			uint16_t temp = 0;
+			temp = lcd_buf[5];
+			lcd_buf[5] = '.' | 0x0100;
+			lcd_buf[6] = temp;
+		}
 	}
 	LCD_Write_Buffer(lcd_buf, size);
 }
@@ -679,12 +682,163 @@ void Write_LCD_Buffer(uint8_t* buf, uint8_t size, uint8_t cursor)
   * @param	Buffer with digits
   * @retval Set coordinate
   */
-float Create_Number(uint8_t* buf)
+float Create_Number(char* buf)
 {
 	float coord = ((buf[1]-'0')*1000) + ((buf[2]-'0')*100) + ((buf[3]-'0')*10)
 			+ (buf[4]-'0') + ((buf[5]-'0')*0.1);
 
 	return coord;
+}
+
+void Reset_Pointers()
+{
+	lcd_write_pnt = lcd_read_pnt = 0;
+	lcd_buf_length = 0;
+}
+
+
+void Gets_Direction_and_Diff()
+{
+	//Gets difference between real and set coordinates
+	coord_diff = real_coord - set_coord;
+	//Calculates encoder value for coordinate difference
+	encoder_diff = (abs(coord_diff)*1000)/12; //1000 value - 12mm
+	initial_coord = real_coord;
+	//Defines direction
+	if (coord_diff < 0)
+	{
+		direction = FORWARD;
+	} else {
+		direction = BACK;
+	}
+	//Unlocks brush to move it
+	Brush_Unlock();
+	//Starts DAC
+	HAL_DAC_Start(&hdac, DAC_CHANNEL_1);
+	//Defines initial speed value
+	inverter_speed = 300;
+	//Sets speed values
+	HAL_DAC_SetValue(&hdac, DAC_CHANNEL_1, DAC_ALIGN_12B_R, inverter_speed);
+}
+
+void Collects_Digits(char data, int8_t coord_name)
+{
+	//if gets number
+	if (data >= '0' && data <= '9')
+	{
+		//HAL_UART_Transmit(&huart3, "Number mode\n\r", sizeof("Number mode\n\r"), 0xFFFF);
+
+		if (number_accept_count == 0)
+		{
+			uint8_t all_empty = 1;
+
+			if (data == '0')
+			{
+				for (uint8_t i = 1; i < 6; ++i)
+				{
+					if (coord_array[i] != '0')
+					{
+						all_empty = 1;
+						break;
+					} else {
+						all_empty = 0;
+					}
+				}
+			}
+
+			if (all_empty == 1)
+			{
+				//HAL_UART_Transmit(&huart3, "Go to EDIT mode\n\r", sizeof("Go to EDIT mode\n\r"), 0xFFFF);
+
+				if (num_pos < 5)
+				{
+					num_pos++;
+
+					for (uint8_t i = 1; i < 6; ++i)
+					{
+						coord_array[i] = coord_array[i+1];
+					}
+					coord_array[5] = data;
+
+					Reset_Pointers();
+					if (coord_name == REAL)
+					{
+						Write_LCD_Buffer(coord_array, 7, ROW_1);
+					} else {
+						Write_LCD_Buffer(coord_array, 7, ROW_2);
+					}
+				}
+			}
+		}
+
+	//if gets * to delete digit
+	} else if (data == '*') {
+
+		if (number_accept_count == 0)
+		{
+			if (num_pos > 0)
+			{
+				num_pos--;
+
+				for (uint8_t i = 1; i < 6; ++i)
+				{
+					coord_array[6-i] = coord_array[6-i-1];
+				}
+				coord_array[1] = '0';
+
+				Reset_Pointers();
+				if (coord_name == REAL)
+				{
+					Write_LCD_Buffer(coord_array, 7, ROW_1);
+				} else {
+					Write_LCD_Buffer(coord_array, 7, ROW_2);
+				}
+			}
+		} else if (number_accept_count == 1)
+		{
+			number_accept_count = 0;
+			Reset_Pointers();
+			Write_LCD_Buffer((char*)"      Edit Mode      ", LCD_ROW_SIZE, ROW_4);
+		}
+	}
+
+	if (data == '#')
+	{
+		number_accept_count++;
+
+		if (number_accept_count == 1)
+		{
+			//Creates number from collected digits
+			if (coord_name == SET)
+			{
+				set_coord = Create_Number(coord_array);
+			} else {
+				real_coord = Create_Number(coord_array);
+			}
+			Reset_Pointers();
+			Write_LCD_Buffer((char*)"    Are you sure?    ", LCD_ROW_SIZE, ROW_4);
+
+		} else if (number_accept_count == 2)
+		{
+			number_accept_count = 0;
+			//After pressing # of second time goes BRUSH_MOVE mode
+			Reset_Pointers();
+			if (coord_name == REAL)
+			{
+				Print_Coord(set_coord, SET);
+				Write_LCD_Buffer((char*)"                     ", LCD_ROW_SIZE, ROW_3);
+				Write_LCD_Buffer((char*)"    Are you sure?    ", LCD_ROW_SIZE, ROW_4);
+				Save_Coord(real_coord);
+				mode = APPLY_MODE;
+			} else {
+				Write_LCD_Buffer((char*)"  Brush Moving Mode  ", LCD_ROW_SIZE, ROW_4);
+				Gets_Direction_and_Diff();
+				//Passes to Brush Move mode
+				mode = BRUSH_MOVE;
+			}
+		}
+	}
+
 }
 
 /**
@@ -694,127 +848,48 @@ float Create_Number(uint8_t* buf)
   */
 void Check_Pressed_Key()
 {
-	uint8_t data = 0;
+	char data = 0;
 
 	if (!Empty(keypad_buf_length))
 	{
 		data = Read_Keypad_Buffer(keypad_buffer);
 
+		//If pressed 'C' key goes to the CALLIBRATION mode
+		if (data == 'C')
+		{
+			Reset_Pointers();
+			Write_LCD_Buffer((char*)"                     ", LCD_ROW_SIZE, 0xC0);
+			Write_LCD_Buffer((char*)"     Callibration    ", LCD_ROW_SIZE, 0x94);
+			Write_LCD_Buffer((char*)"                     ", LCD_ROW_SIZE, 0xD4);
+			memset(coord_array, '0', 6);
+			mode = CALLIBRATION;
+		}
+
 		if (mode == APPLY_MODE)
 		{
 			if (data == '*')
 			{
-				Write_LCD_Buffer((uint8_t*)" 000000", 7, 0xC6);
-				Write_LCD_Buffer((uint8_t*)"   Edit Mode  ", 14, 0xD7);
-
+				Reset_Pointers();
+				Write_LCD_Buffer((char*)" 000000", 7, ROW_2);
+				Write_LCD_Buffer((char*)"      Edit Mode      ", LCD_ROW_SIZE, ROW_4);
 				//Goes to edit mode
 				mode = EDIT;
+				memset(coord_array, '0', 6);
+				//HAL_UART_Transmit(&huart3, "Go to EDIT mode\n\r", sizeof("Go to EDIT mode\n\r"), 0xFFFF);
 
 			} else if (data == '#')
 			{
-				Write_LCD_Buffer((uint8_t*)"              ", 14, 0xD7);
+				Reset_Pointers();
+				Write_LCD_Buffer((char*)"                     ", LCD_ROW_SIZE, ROW_4);
 				mode = CHECK_PEDAL;
 			}
 		} else if (mode == EDIT)
 		{
-			//if gets number
-			if (data >= '0' && data <= '9')
-			{
-				if (number_accept_count == 0)
-				{
-					uint8_t all_empty = 1;
+			Collects_Digits(data, SET);
 
-					if (data == '0')
-					{
-						for (uint8_t i = 1; i < 6; ++i)
-						{
-							if (coord_array[i] != '0')
-							{
-								all_empty = 1;
-								break;
-							} else {
-								all_empty = 0;
-							}
-						}
-					}
-
-					if (all_empty == 1)
-					{
-						if (num_pos < 5)
-						{
-							num_pos++;
-
-							for (uint8_t i = 1; i < 6; ++i)
-							{
-								coord_array[i] = coord_array[i+1];
-							}
-							coord_array[5] = data;
-
-							Write_LCD_Buffer(coord_array, 7, 0xC6);
-						}
-					}
-				}
-
-			//if gets * to delete digit
-			} else if (data == '*') {
-
-				if (number_accept_count == 0)
-				{
-					if (num_pos > 0)
-					{
-						num_pos--;
-
-						for (uint8_t i = 1; i < 6; ++i)
-						{
-							coord_array[6-i] = coord_array[6-i-1];
-						}
-						coord_array[1] = '0';
-
-						Write_LCD_Buffer(coord_array, 7, 0xC6);
-					}
-				} else if (number_accept_count == 1)
-				{
-					number_accept_count = 0;
-					Write_LCD_Buffer((uint8_t*)"   Edit Mode  ", 14, 0xD7);
-				}
-			}
-
-			if (data == '#')
-			{
-				number_accept_count++;
-
-				if (number_accept_count == 1)
-				{
-					//Creates number from collected digits
-					set_coord = Create_Number(coord_array);
-					Write_LCD_Buffer((uint8_t*)" Are you sure?", 14, 0xD7);
-
-				} else if (number_accept_count == 2)
-				{
-					//After pressing # of second time goes BRUSH_MOVE mode
-					Write_LCD_Buffer((uint8_t*)" Brush Moving Mode", 18, 0xD6);
-
-					//Gets difference between real and set coordinates
-					coord_diff = real_coord - set_coord;
-					//Calculates encoder value for coordinate difference
-					encoder_diff = (abs(coord_diff)*1000)/12; //1000 value - 12mm
-					initial_coord = real_coord;
-					//Defines direction
-					if (coord_diff < 0)
-					{
-						direction = FORWARD;
-					} else {
-						direction = BACK;
-					}
-					//Unlock brush to move it
-					Brush_Unlock();
-					HAL_DAC_Start(&hdac, DAC_CHANNEL_1);
-					inverter_speed = 300;
-					HAL_DAC_SetValue(&hdac, DAC_CHANNEL_1, DAC_ALIGN_12B_R, inverter_speed);
-					//Passes to Brush Move mode
-					mode = BRUSH_MOVE;
-				}
-			}
+		} else if (mode == CALLIBRATION)
+		{
+			Collects_Digits(data, REAL);
 		}
 	}
 }
@@ -848,7 +923,7 @@ void Set_Inverter(uint8_t dir, uint16_t speed)
 		HAL_GPIO_WritePin(Brush_Back_GPIO_Port, Brush_Back_Pin, GPIO_PIN_SET);
 	}
 
-	//Set dac value
+	//Sets DAC value
 	HAL_DAC_SetValue(&hdac, DAC_CHANNEL_1, DAC_ALIGN_12B_R, speed);
 }
 
@@ -860,12 +935,13 @@ void Set_Inverter(uint8_t dir, uint16_t speed)
   */
 void Change_Speed(uint16_t *speed)
 {
-	if (*speed <= 4095)
+	if (*speed <= MAX_DAC_VALUE)
 	{
 		*speed = *speed + RAMP_UP;
-		if (*speed > 4095)
+
+		if (*speed > MAX_DAC_VALUE)
 		{
-			*speed = 4095;
+			*speed = MAX_DAC_VALUE;
 		}
 	}
 	if (speed >= 0)
@@ -1016,23 +1092,9 @@ void Move_Brush()
 					real_coord = initial_coord + ((float)(12*abs(encoder_value))/1000);
 				}
 
-
-
 				encoder_value = 0;
-
-				uint8_t temp_buf[10];
-				sprintf(temp_buf, "%6.1f", real_coord);
-				for (int i = 0; i < strlen(temp_buf); ++i)
-				{
-				  if (temp_buf[i] == 0x20)
-				  {
-					  temp_buf[i] = '0';
-				  }
-				}
-				LCD_SendCommand(LCD_ADDR, 0x80);
-				LCD_SendString(LCD_ADDR, "Real  ");
-				LCD_SendString(LCD_ADDR, temp_buf);
-				Write_LCD_Buffer((uint8_t*)"                  ", 18, 0xD6);
+				Print_Coord(real_coord, REAL);
+				Write_LCD_Buffer((char*)"                     ", LCD_ROW_SIZE, ROW_4);
 
 				//Passes to CHECK_PEDAL mode
 				mode = CHECK_PEDAL;
@@ -1208,7 +1270,8 @@ void Check_Pedal()
 						temp = 1;
 						if (old_temp != temp)
 						{
-							Write_LCD_Buffer((uint8_t*)"       Cutting       ", 21, 0xD4);
+							Reset_Pointers();
+							Write_LCD_Buffer((char*)"       Cutting       ", LCD_ROW_SIZE, ROW_4);
 						}
 					} else {
 
@@ -1220,7 +1283,8 @@ void Check_Pedal()
 						temp = 2;
 						if (old_temp != temp)
 						{
-							Write_LCD_Buffer((uint8_t*)"     Cut is done     ", 21, 0xD4);
+							Reset_Pointers();
+							Write_LCD_Buffer((char*)"     Cut is done     ", LCD_ROW_SIZE, ROW_4);
 						}
 
 					}
@@ -1231,7 +1295,8 @@ void Check_Pedal()
 				temp = 3;
 				if (old_temp != temp)
 				{
-					Write_LCD_Buffer((uint8_t*)"     Cutting Mode    ", 21, 0xD4);
+					Reset_Pointers();
+					Write_LCD_Buffer((char*)"     Cutting Mode    ", LCD_ROW_SIZE, ROW_4);
 				}
 			}
 		}
@@ -1243,8 +1308,12 @@ void Check_Pedal()
 			delay_for_cutting_buttons = 0;
 			delay_for_cutting = 0;
 			Cutting_Button_Off();
-			Write_LCD_Buffer((uint8_t*)" Are you sure?", 14, 0xD7);
+			Reset_Pointers();
+			Write_LCD_Buffer((char*)"    Are you sure?    ", LCD_ROW_SIZE, ROW_4);
+			num_pos = 0;
+			memset(coord_array, '0', 6);
 			mode = APPLY_MODE;
+			//HAL_UART_Transmit(&huart3, "Pedal released\n\r", sizeof("Pedal released\n\r"), 0xFFFF);
 		}
 	}
 	old_temp = temp;
@@ -1255,12 +1324,36 @@ void Check_Pedal()
 ///////////////////////////////////////////////////////////////////////////////
 uint8_t hand_catch_detected = 0;
 
+void Print_Coord(float r_coord, uint8_t coord_name)
+{
+	char temp_buf[10];
+	sprintf(temp_buf+1, "%6.1f", r_coord);
+	for (int i = 0; i < strlen(temp_buf); ++i)
+	{
+	  if (temp_buf[i] == 0x20)
+	  {
+		  temp_buf[i] = '0';
+	  }
+
+	}
+	Reset_Pointers();
+	if (coord_name == REAL)
+	{
+		Write_LCD_Buffer((char*)" Real  ", sizeof(" Real  "), 0x80);
+		Write_LCD_Buffer(temp_buf, 7, 0x86);
+	} else {
+		Write_LCD_Buffer((char*)" Set   ", sizeof(" Set   "), 0xC0);
+		Write_LCD_Buffer(temp_buf, 7, 0xC6);
+	}
+}
+
 void Check_Hand_Catch()
 {
 	if (input_state.hand_catch_is_pressed == 1)
 	{
 		hand_catch_detected = 1;
-	} else {
+	} else
+	{
 		if (hand_catch_detected == 1)
 		{
 			hand_catch_detected = 0;
@@ -1270,23 +1363,16 @@ void Check_Hand_Catch()
 			if (encoder_value < 0)
 			{
 				real_coord = real_coord - temp_value;
-			} else {
+			} else
+			{
 				real_coord = real_coord + temp_value;
 			}
 
-			uint8_t temp_buf[10];
-			sprintf(temp_buf, "%6.1f", real_coord);
-			for (int i = 0; i < strlen(temp_buf); ++i)
-			{
-			  if (temp_buf[i] == 0x20)
-			  {
-				  temp_buf[i] = '0';
-			  }
-			}
-			LCD_SendCommand(LCD_ADDR, 0x80);
-			LCD_SendString(LCD_ADDR, "Real  ");
-			LCD_SendString(LCD_ADDR, temp_buf);
+			//Prints real coordinate to LCD
+			Print_Coord(real_coord, REAL);
+			//Saves real coord to backup register
 			Save_Coord(real_coord);
+			//Resets encoder value
 			encoder_value = 0;
 		}
 	}
@@ -1295,9 +1381,9 @@ void Check_Hand_Catch()
 ///////////////////////////////////////////////////////////////////////////////
 //								Main Task									 //
 ///////////////////////////////////////////////////////////////////////////////
-void main_task()
+void Main_Task()
 {
-	  if (mode == APPLY_MODE || mode == EDIT)
+	  if ((mode == APPLY_MODE) || (mode == EDIT) || (mode == CALLIBRATION))
 	  {
 		  Check_Pressed_Key();
 	  } else if (mode == BRUSH_MOVE)
