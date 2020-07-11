@@ -102,7 +102,7 @@ uint8_t Read_Knife_Sensors(void);
 uint8_t Read_Hand_Catch_Input(void);
 char 	Convert_Key_to_Char(uint8_t key);
 uint16_t Read_Encoder(void);
-uint16_t Read_Coord(void);
+uint32_t Read_Coord(void);
 void Print_Coord(float r_coord, uint8_t coord_name);
 
 float Create_Number(char* buf);

@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include "main.h"
 #include "cutter.h"
+#include "math.h"
 
 extern I2C_HandleTypeDef hi2c1;
 extern UART_HandleTypeDef huart3;
@@ -870,7 +871,7 @@ void Check_Pressed_Key()
 			if (data == '*')
 			{
 				Reset_Pointers();
-				Write_LCD_Buffer((char*)" 000000", 7, ROW_2);
+				Write_LCD_Buffer((char*)" 0000.0", 7, ROW_2);
 				Write_LCD_Buffer((char*)"      Edit Mode      ", LCD_ROW_SIZE, ROW_4);
 				//Goes to edit mode
 				mode = EDIT;
@@ -989,14 +990,15 @@ void Save_Coord(float coord)
 	 * Write value to the Backup Register
 	 * Lock the backup register
 	 */
-	uint16_t l_coord = coord * 10;
+	float f_coord = coord * 1000;
+	uint32_t r_coord = f_coord;
 
 	/*set the DBP bit the Power Control
 	Register (PWR_CR) to enable access to the Backup
 	registers and RTC.*/
 	HAL_PWR_EnableBkUpAccess();
 
-	HAL_RTCEx_BKUPWrite(&hrtc, RTC_BKP_DR1, l_coord);
+	HAL_RTCEx_BKUPWrite(&hrtc, RTC_BKP_DR1, r_coord);
 
 	HAL_PWR_DisableBkUpAccess();
 }
@@ -1024,10 +1026,9 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
   * @param	Address of the backup register
   * @retval The real coordinate of the brush
   */
-uint16_t Read_Coord()
+uint32_t Read_Coord()
 {
-
-	uint16_t data = HAL_RTCEx_BKUPRead(&hrtc, RTC_BKP_DR1);
+	uint32_t data = HAL_RTCEx_BKUPRead(&hrtc, RTC_BKP_DR1);
 
 	/* Reads real coordinate of the brush */
 	return data;
@@ -1081,10 +1082,8 @@ void Move_Brush()
 				Set_Inverter(STOP, speed);
 				//Locks brush to fix it
 				Brush_Lock();
-				//Saves real coordinate to backup register
-				Save_Coord(real_coord);
-				//To do write to LCD real coordinate
 
+				//To do write to LCD real coordinate
 				if (real_coord > set_coord)
 				{
 					real_coord = initial_coord - ((float)(12*abs(encoder_value))/1000);
@@ -1092,7 +1091,10 @@ void Move_Brush()
 					real_coord = initial_coord + ((float)(12*abs(encoder_value))/1000);
 				}
 
+				//Saves real coordinate to backup register
+				Save_Coord(real_coord);
 				encoder_value = 0;
+				//Prints real coordinate to LCD
 				Print_Coord(real_coord, REAL);
 				Write_LCD_Buffer((char*)"                     ", LCD_ROW_SIZE, ROW_4);
 
@@ -1328,13 +1330,13 @@ void Print_Coord(float r_coord, uint8_t coord_name)
 {
 	char temp_buf[10];
 	sprintf(temp_buf+1, "%6.1f", r_coord);
-	for (int i = 0; i < strlen(temp_buf); ++i)
+
+	for (int i = 0; i < sizeof(temp_buf); ++i)
 	{
 	  if (temp_buf[i] == 0x20)
 	  {
 		  temp_buf[i] = '0';
 	  }
-
 	}
 	Reset_Pointers();
 	if (coord_name == REAL)

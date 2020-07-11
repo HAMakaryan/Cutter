@@ -212,7 +212,7 @@ void SystemClock_Config(void)
 static void Read_Real_Coord()
 {
 	//Save_Coord(0);
-	real_coord = (float)Read_Coord()/10;
+	real_coord = (float)Read_Coord()/1000;
 	set_coord = real_coord;
 }
 
