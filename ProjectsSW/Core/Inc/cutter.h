@@ -10,21 +10,11 @@
 
 #include "stm32f7xx_hal.h"
 
+#define LCD_ROW_SIZE	20 //20x4
 #define LCD_BUF_SIZE	64
 #define LCD_ADDR		(0x27 << 1)
 #define LCD_DELAY_MS	5
 #define LCD_TIMEOUT		10
-
-#define LCD_ROW_SIZE	20 + 1 //1 for address
-#define ROW_4			0xD4	//fourth row, first column
-#define ROW_2			0xC6
-#define ROW_1			0x86
-#define ROW_3			0x94
-#define	MAX_DAC_VALUE	4095
-
-#define REAL	1
-#define	SET		2
-
 #define LCD_DATA_MASK	0x0100
 
 #define PIN_RS    (1 << 0)
@@ -36,6 +26,14 @@
 #define KEYPAD_BUF_SIZE		16
 #define DEBOUNCE_TIME		10
 #define KEYPAD_TIMEOUT		5 //every 5 ms
+#define ROW_1				0x80
+#define ROW_2				0xC0
+#define ROW_3				0x94
+#define ROW_4				0xD4
+#define R_COORD_POS			0x86
+#define S_COORD_POS			0xC6
+#define REAL				1
+#define	SET					2
 
 #define IDLE	0
 #define ERROR 	1
@@ -48,16 +46,17 @@
 #define CUTTING			5
 #define CALLIBRATION	6
 
+#define COORD_SIZE				5
+#define COORD_SIZE_WITH_POINT	COORD_SIZE+1
+
 #define PRESSED		1
 #define RELEASED	0
-
 #define SINGLE_KEY	1
 
 #define ROW1	1
 #define ROW2	2
 #define ROW3	4
 #define ROW4	8
-
 #define COL1	1
 #define COL2	2
 #define COL3	4
@@ -66,14 +65,15 @@
 #define FORWARD	1
 #define	BACK	2
 #define STOP	3
-
 #define RAMP_UP		20
 #define RAMP_DOWN	20
 
-#define COORD_DIFF				50000
-#define DISTANCE_FOR_RAMP_DOWN	100
-#define LIMIT_UP				1500
+#define	MAX_DAC_VALUE			4095
+#define DISTANCE_FOR_RAMP_DOWN	8333
+#define SOFT_LIMIT_UP			1500
+#define HARD_LIMIT_UP			1540
 #define LIMIT_DOWN				10
+#define DISTANCE_FOR_FORWARD	8333
 
 void LCD_Init(uint8_t lcd_addr);
 void LCD_Write(uint8_t lcd_addr);
@@ -81,7 +81,7 @@ void Collect_Digits(void);
 void Keypad_Init(void);
 void Save_Coord(float coord);
 void Set_Inverter(uint8_t dir, uint16_t speed);
-void Change_Speed(uint16_t* speed);
+void Change_Speed(uint16_t* speed, uint8_t ramp);
 void Brush_Unlock(void);
 void Brush_Lock(void);
 void Move_Brush(void);
