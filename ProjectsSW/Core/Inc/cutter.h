@@ -95,16 +95,16 @@ void LCD_SendString(uint8_t lcd_addr, char *str);
 void Read_Pin(GPIO_TypeDef* GPIOx, uint16_t GPIO_Pin, uint8_t * st0_counter,
 					uint8_t * st1_counter, uint8_t * is_pressed, uint8_t on_state);
 void Read_Inputs(void);
+void Print_Coord(float r_coord, uint8_t coord_name);
 void Main_Task(void);
 
+char Convert_Key_to_Char(uint8_t key);
+uint8_t Get_Coord_Size(char* coord_arr, float coord);
 uint8_t Read_Pedal(void);
 uint8_t Read_Knife_Sensors(void);
 uint8_t Read_Hand_Catch_Input(void);
-char 	Convert_Key_to_Char(uint8_t key);
 uint16_t Read_Encoder(void);
 uint32_t Read_Coord(void);
-void Print_Coord(float r_coord, uint8_t coord_name);
-
 float Create_Number(char* buf);
 
 typedef struct

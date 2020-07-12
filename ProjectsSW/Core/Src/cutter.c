@@ -596,7 +596,7 @@ void Read_Keypad()
 ///////////////////////////////////////////////////////////////////////////////
 //							CHANGE COORDINATE								 //
 ///////////////////////////////////////////////////////////////////////////////
-uint8_t num_pos 			= 0;
+uint8_t coord_size 			= 0;
 uint8_t number_accept_count = 0;
 uint8_t mode 				= APPLY_MODE;
 uint8_t direction 			= 0;
@@ -697,21 +697,21 @@ void Collects_Digits(char data, int8_t coord_name)
 	//if gets number
 	if (data >= '0' && data <= '9') {
 		if (number_accept_count == 0) {
-			uint8_t all_empty = 0;
+			uint8_t all_zero = 0;
 			if (data == '0') {
 				for (uint8_t i = 0; i < COORD_SIZE; ++i) {
 					if (coord_array[i] != '0') {
-						all_empty = 0;
+						all_zero = 0;
 						break;
 					} else {
-						all_empty = 1;
+						all_zero = 1;
 					}
 				}
 			}
 
-			if (all_empty == 0) {
-				if (num_pos < COORD_SIZE) {
-					num_pos++;
+			if (all_zero == 0) {
+				if (coord_size < COORD_SIZE) {
+					coord_size++;
 					for (uint8_t i = 0; i < COORD_SIZE; ++i) {
 						coord_array[i] = coord_array[i+1];
 					}
@@ -730,8 +730,8 @@ void Collects_Digits(char data, int8_t coord_name)
 	//if gets * to delete digit
 	} else if (data == '*') {
 		if (number_accept_count == 0) {
-			if (num_pos > 0) {
-				num_pos--;
+			if (coord_size > 0) {
+				coord_size--;
 
 				for (uint8_t i = 0; i < COORD_SIZE-1; ++i) {
 					coord_array[COORD_SIZE-i-1] = coord_array[COORD_SIZE-i-2];
@@ -761,8 +761,8 @@ void Collects_Digits(char data, int8_t coord_name)
 			if (coord_name == SET) {
 				set_coord = Create_Number(coord_array);
 				if (set_coord < LIMIT_DOWN) {
-					set_coord = 0;
-					/*num_pos = 3;
+					//set_coord = 0;
+					/*coord_size = 3;
 					uint8_t temp_buf[10];
 					sprintf(temp_buf+1, "%6.1f", (float)LIMIT_DOWN);
 					coord_array[1] = temp_buf[1];
@@ -774,8 +774,8 @@ void Collects_Digits(char data, int8_t coord_name)
 					Write_LCD_Buffer(coord_array, 7, ROW_2);*/
 
 				} else 	if (set_coord > SOFT_LIMIT_UP) {
-					set_coord = 0;
-					/*num_pos = 5;
+					//set_coord = 0;
+					/*coord_size = 5;
 					sprintf(coord_array+1, "%6.1f", (float)SOFT_LIMIT_UP);
 					coord_array[5] = '0';
 					Write_LCD_Buffer((char*)" Max", 4, 0xCE);
@@ -784,8 +784,8 @@ void Collects_Digits(char data, int8_t coord_name)
 			} else if (coord_name == REAL) {
 				real_coord = Create_Number(coord_array);
 				if (real_coord < LIMIT_DOWN || real_coord > SOFT_LIMIT_UP) {
-					real_coord = 0;
-					/*num_pos = 0;
+					//real_coord = 0;
+					/*coord_size = 0;
 					memset(coord_array, '0', COORD_SIZE);
 					Write_LCD_Buffer((char*)"  Wrong parameter   ", LCD_ROW_SIZE, ROW_3);
 					Write_LCD_Buffer(coord_array, COORD_SIZE, ROW_1);*/
@@ -814,6 +814,33 @@ void Collects_Digits(char data, int8_t coord_name)
 	}
 }
 
+uint8_t Get_Coord_Size(char* coord_arr, float coord)
+{
+	char temp_buf[10];
+	sprintf(temp_buf, "%6.1f", coord);
+
+	for (int i = 0; i < sizeof(temp_buf); ++i) {
+	  if (temp_buf[i] == 0x20) {
+		  temp_buf[i] = '0';
+	  }
+	}
+	coord_arr[0] = temp_buf[0];
+	coord_arr[1] = temp_buf[1];
+	coord_arr[2] = temp_buf[2];
+	coord_arr[3] = temp_buf[3];
+	coord_arr[4] = temp_buf[5];
+
+	uint8_t temp = 0;
+	for (uint8_t i = 0; i < COORD_SIZE; ++i) {
+		if (coord_array[i] == '0') {
+			temp++;
+		} else {
+			return COORD_SIZE - temp;
+		}
+	}
+	return COORD_SIZE - temp;
+}
+
 /**
   * @brief	Checks pressed key.
   * @param	None
@@ -832,6 +859,7 @@ void Check_Pressed_Key()
 			Write_LCD_Buffer((char*)"    Callibration    ", LCD_ROW_SIZE, ROW_3);
 			Write_LCD_Buffer((char*)"     Edit Mode      ", LCD_ROW_SIZE, ROW_4);
 			memset(coord_array, '0', COORD_SIZE);
+			coord_size = Get_Coord_Size(coord_array, real_coord);
 			mode = CALLIBRATION;
 		}
 
@@ -841,6 +869,8 @@ void Check_Pressed_Key()
 				Write_LCD_Buffer((char*)"00000", COORD_SIZE, S_COORD_POS);
 				Write_LCD_Buffer((char*)"     Edit Mode      ", LCD_ROW_SIZE, ROW_4);
 				memset(coord_array, '0', COORD_SIZE);
+				set_coord = 0;
+				coord_size = Get_Coord_Size(coord_array, set_coord);
 				//Goes to edit mode
 				mode = EDIT;
 
@@ -1239,7 +1269,7 @@ void Check_Pedal()
 			delay_for_cutting_buttons = 0;
 			delay_for_cutting = 0;
 			Cutting_Button_Off();
-			//num_pos = 0;
+			//coord_size = 0;
 			//memset(coord_array, '0', COORD_SIZE);
 		}
 		if (!Empty(keypad_buf_length)) {
