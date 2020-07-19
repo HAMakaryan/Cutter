@@ -598,7 +598,7 @@ void Read_Keypad()
 ///////////////////////////////////////////////////////////////////////////////
 uint8_t coord_size 			= 0;
 uint8_t number_accept_count = 0;
-uint8_t mode 				= APPLY_MODE;
+uint8_t mode 				= SELECT;
 uint8_t direction 			= 0;
 char coord_array[COORD_SIZE];
 uint32_t encoder_diff 		= 0;
@@ -682,18 +682,27 @@ void Gets_Direction_and_Diff()
 	} else {
 		direction = BACK;
 	}
+
+	if (coord_diff < DISTANCE_FOR_FORWARD) {
+		inverter_speed = 2500;
+	} else {
+		inverter_speed = 0;
+	}
 	//Unlocks brush to move it
 	Brush_Unlock();
 	//Starts DAC
 	HAL_DAC_Start(&hdac, DAC_CHANNEL_1);
-	//Defines initial speed value
-	inverter_speed = 2500;
-	//Sets speed values
-	HAL_DAC_SetValue(&hdac, DAC_CHANNEL_1, DAC_ALIGN_12B_R, inverter_speed);
+	Set_Inverter(direction, inverter_speed);
 }
 
-void Collects_Digits(char data, int8_t coord_name)
+void Collects_Digits(int8_t coord_name)
 {
+	char data = 0;
+
+	if (!Empty(keypad_buf_length)) {
+		data = Read_Keypad_Buffer(keypad_buffer);
+	}
+
 	//if gets number
 	if (data >= '0' && data <= '9') {
 		if (number_accept_count == 0) {
@@ -748,7 +757,11 @@ void Collects_Digits(char data, int8_t coord_name)
 		} else if (number_accept_count == 1) {
 			number_accept_count = 0;
 			Reset_Pointers();
-			Write_LCD_Buffer((char*)"     Edit Mode      ", LCD_ROW_SIZE, ROW_4);
+			if (coord_name == SET) {
+				Write_LCD_Buffer((char*)"     Edit Mode      ", LCD_ROW_SIZE, ROW_4);
+			} else {
+				Write_LCD_Buffer((char*)"                    ", LCD_ROW_SIZE, ROW_4);
+			}
 		}
 	}
 
@@ -801,9 +814,10 @@ void Collects_Digits(char data, int8_t coord_name)
 			if (coord_name == REAL) {
 				Print_Coord(set_coord, SET);
 				Write_LCD_Buffer((char*)"                    ", LCD_ROW_SIZE, ROW_3);
-				Write_LCD_Buffer((char*)"   Are you sure?    ", LCD_ROW_SIZE, ROW_4);
+				Write_LCD_Buffer((char*)" *-Edit #-Cut C-Cal ", LCD_ROW_SIZE, ROW_4);
 				Save_Coord(real_coord);
-				mode = APPLY_MODE;
+				//Goes to Select Mode
+				mode = SELECT;
 			} else if (coord_name == SET) {
 				Write_LCD_Buffer((char*)" Brush Moving Mode  ", LCD_ROW_SIZE, ROW_4);
 				Gets_Direction_and_Diff();
@@ -852,38 +866,34 @@ void Check_Pressed_Key()
 
 	if (!Empty(keypad_buf_length)) {
 		data = Read_Keypad_Buffer(keypad_buffer);
-		//If pressed 'C' key goes to the CALLIBRATION mode
-		if (data == 'C') {
+
+		if (data == '*') {
+			Reset_Pointers();
+			Write_LCD_Buffer((char*)"00000", COORD_SIZE, S_COORD_POS);
+			Write_LCD_Buffer((char*)"     Edit Mode      ", LCD_ROW_SIZE, ROW_4);
+			memset(coord_array, '0', COORD_SIZE);
+			set_coord = 0;
+			coord_size = Get_Coord_Size(coord_array, set_coord);
+			number_accept_count = 0;
+			//Goes to edit mode
+			mode = EDIT;
+
+		} else if (data == '#') {
+			Reset_Pointers();
+			Write_LCD_Buffer((char*)"                    ", LCD_ROW_SIZE, ROW_4);
+			//Goes pedal checking mode
+			mode = CHECK_PEDAL;
+
+		} else if (data == 'C') {
 			Reset_Pointers();
 			Write_LCD_Buffer((char*)"                    ", LCD_ROW_SIZE, ROW_2);
 			Write_LCD_Buffer((char*)"    Callibration    ", LCD_ROW_SIZE, ROW_3);
-			Write_LCD_Buffer((char*)"     Edit Mode      ", LCD_ROW_SIZE, ROW_4);
+			Write_LCD_Buffer((char*)"                    ", LCD_ROW_SIZE, ROW_4);
 			memset(coord_array, '0', COORD_SIZE);
 			coord_size = Get_Coord_Size(coord_array, real_coord);
+			number_accept_count = 0;
+			//Goes callibration mode
 			mode = CALLIBRATION;
-		}
-
-		if (mode == APPLY_MODE) {
-			if (data == '*') {
-				Reset_Pointers();
-				Write_LCD_Buffer((char*)"00000", COORD_SIZE, S_COORD_POS);
-				Write_LCD_Buffer((char*)"     Edit Mode      ", LCD_ROW_SIZE, ROW_4);
-				memset(coord_array, '0', COORD_SIZE);
-				set_coord = 0;
-				coord_size = Get_Coord_Size(coord_array, set_coord);
-				//Goes to edit mode
-				mode = EDIT;
-
-			} else if (data == '#') {
-				Reset_Pointers();
-				Write_LCD_Buffer((char*)"                    ", LCD_ROW_SIZE, ROW_4);
-				mode = CHECK_PEDAL;
-			}
-		} else if (mode == EDIT) {
-			Collects_Digits(data, SET);
-
-		} else if (mode == CALLIBRATION) {
-			Collects_Digits(data, REAL);
 		}
 	}
 }
@@ -1079,6 +1089,12 @@ void Move_Brush()
 				mode = CHECK_PEDAL;
 			}
 		}
+
+		//Write_LCD_Buffer((char*)"                    ", LCD_ROW_SIZE, ROW_4);
+		//Unlock_Handle();
+		///Passes to CHECK_PEDAL mode
+		//mode = CHECK_PEDAL;
+
 	}
 }
 
@@ -1258,7 +1274,7 @@ void Check_Pedal()
 				temp = 3;
 				if (old_temp != temp) {
 					Reset_Pointers();
-					Write_LCD_Buffer((char*)"    Cutting Mode    ", LCD_ROW_SIZE, ROW_4);
+					Write_LCD_Buffer((char*)"  Pedal is pressed  ", LCD_ROW_SIZE, ROW_4);
 				}
 			}
 		}
@@ -1269,6 +1285,7 @@ void Check_Pedal()
 			delay_for_cutting_buttons = 0;
 			delay_for_cutting = 0;
 			Cutting_Button_Off();
+			Write_LCD_Buffer((char*)"                    ", LCD_ROW_SIZE, ROW_4);
 			//coord_size = 0;
 			//memset(coord_array, '0', COORD_SIZE);
 		}
@@ -1277,8 +1294,15 @@ void Check_Pedal()
 
 			//If pressed 'C' key goes to the CALLIBRATION mode
 			if (data == '*') {
-				mode = APPLY_MODE;
+				mode = SELECT;
+				Reset_Pointers();
+				Write_LCD_Buffer((char*)" *-Edit #-Cut C-Cal ", LCD_ROW_SIZE, ROW_4);
 			}
+		}
+		if (input_state.hand_catch_is_pressed == 1)
+		{
+			mode = HAND_CATCH;
+			//anjatel argelak@
 		}
 	}
 	old_temp = temp;
@@ -1341,7 +1365,7 @@ void Check_Hand_Catch()
 ///////////////////////////////////////////////////////////////////////////////
 void Main_Task()
 {
-	  if ((mode == APPLY_MODE) || (mode == EDIT) || (mode == CALLIBRATION)) {
+	  /*if ((mode == APPLY_MODE) || (mode == EDIT) || (mode == CALLIBRATION)) {
 		  Check_Pressed_Key();
 	  } else if (mode == BRUSH_MOVE) {
 		  Move_Brush();
@@ -1349,7 +1373,7 @@ void Main_Task()
 		  Check_Pedal();
 	  }
 
-	  Check_Hand_Catch();
+	  Check_Hand_Catch();*/
 	  LCD_Write(LCD_ADDR);
 
 	  /*if (encoder_time == 100)
@@ -1365,4 +1389,45 @@ void Main_Task()
 		  Read_Keypad();
 		  Read_Inputs();
 	  }
+
+	  state_machine();
+}
+
+void state_machine()
+{
+	switch(mode)
+	{
+		case SELECT:
+		{
+			Check_Pressed_Key();
+			break;
+		}
+		case CALLIBRATION:
+		{
+			//read_keypad ....
+			Collects_Digits(REAL);
+			break;
+		}
+		case EDIT:
+		{
+			//read_keypad ....
+			Collects_Digits(SET);
+			break;
+		}
+		case BRUSH_MOVE:
+		{
+			Move_Brush();
+			break;
+		}
+		case CHECK_PEDAL:
+		{
+			Check_Pedal();
+			break;
+		}
+		case HAND_CATCH:
+		{
+			Check_Hand_Catch();
+			break;
+		}
+	}
 }

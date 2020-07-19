@@ -39,12 +39,15 @@
 #define ERROR 	1
 #define SINGLE	2
 
-#define APPLY_MODE		1
-#define EDIT 			2
-#define BRUSH_MOVE		3
-#define CHECK_PEDAL		4
-#define CUTTING			5
-#define CALLIBRATION	6
+typedef enum {
+	SELECT,
+	EDIT,
+	CALLIBRATION,
+	BRUSH_MOVE,
+	HAND_CATCH,
+	CHECK_PEDAL,
+	CUTTING
+}system_mode_t;
 
 #define COORD_SIZE				5
 #define COORD_SIZE_WITH_POINT	COORD_SIZE+1
@@ -70,10 +73,10 @@
 
 #define	MAX_DAC_VALUE			4095
 #define DISTANCE_FOR_RAMP_DOWN	8333
-#define SOFT_LIMIT_UP			1500
-#define HARD_LIMIT_UP			1540
-#define LIMIT_DOWN				10
-#define DISTANCE_FOR_FORWARD	8333
+#define SOFT_LIMIT_UP			1055
+#define HARD_LIMIT_UP			1058	//mm
+#define LIMIT_DOWN				95		//mm
+#define DISTANCE_FOR_FORWARD	8333	//100mm
 
 void LCD_Init(uint8_t lcd_addr);
 void LCD_Write(uint8_t lcd_addr);
