@@ -77,6 +77,8 @@ typedef enum {
 #define HARD_LIMIT_UP			1058	//mm
 #define LIMIT_DOWN				95		//mm
 #define DISTANCE_FOR_FORWARD	8333	//100mm
+#define MIN_SPEED				2500
+#define MIN_ENCODER_VALUE		833		//10mm
 
 void LCD_Init(uint8_t lcd_addr);
 void LCD_Write(uint8_t lcd_addr);
@@ -99,6 +101,7 @@ void Read_Pin(GPIO_TypeDef* GPIOx, uint16_t GPIO_Pin, uint8_t * st0_counter,
 					uint8_t * st1_counter, uint8_t * is_pressed, uint8_t on_state);
 void Read_Inputs(void);
 void Print_Coord(float r_coord, uint8_t coord_name);
+void state_machine(void);
 void Main_Task(void);
 
 char Convert_Key_to_Char(uint8_t key);

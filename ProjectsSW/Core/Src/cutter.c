@@ -600,12 +600,14 @@ uint8_t coord_size 			= 0;
 uint8_t number_accept_count = 0;
 uint8_t mode 				= SELECT;
 uint8_t direction 			= 0;
+uint8_t min_speed			= 0;
 char coord_array[COORD_SIZE];
 uint32_t encoder_diff 		= 0;
 float set_coord 			= 0;
 float initial_coord			= 0;
 float coord_diff 			= 0;
-uint16_t inverter_speed		= 2500;
+uint16_t inverter_speed		= MIN_SPEED;
+int32_t encoder_value 		= 0;
 
 extern float real_coord;
 
@@ -673,26 +675,28 @@ void Gets_Direction_and_Diff()
 	//Gets difference between real and set coordinates
 	coord_diff = real_coord - set_coord;
 	//Calculates encoder value for coordinate difference
-	encoder_diff = (abs(coord_diff)*1000)/12; //1000 value - 12mm
+	encoder_diff = ((float)abs(round(coord_diff)*1000))/12; //1000 value - 12mm
 	initial_coord = real_coord;
 	//Defines direction
 	if (coord_diff < 0) {
 		direction = FORWARD;
-		encoder_diff += DISTANCE_FOR_FORWARD;
 	} else {
 		direction = BACK;
 	}
 
-	if (coord_diff < DISTANCE_FOR_FORWARD) {
-		inverter_speed = 2500;
+	if (encoder_diff < DISTANCE_FOR_FORWARD) {
+		inverter_speed = MIN_SPEED;
+		min_speed = 1;
 	} else {
 		inverter_speed = 0;
+		min_speed = 0;
 	}
 	//Unlocks brush to move it
 	Brush_Unlock();
 	//Starts DAC
 	HAL_DAC_Start(&hdac, DAC_CHANNEL_1);
-	Set_Inverter(direction, inverter_speed);
+	encoder_value = 0;
+	//Set_Inverter(direction, inverter_speed);
 }
 
 void Collects_Digits(int8_t coord_name)
@@ -808,8 +812,7 @@ void Collects_Digits(int8_t coord_name)
 
 		} else if (number_accept_count == 2) {
 			number_accept_count = 0;
-			//After pressing # of second time goes BRUSH_MOVE mode
-			Lock_Handle();
+
 			Reset_Pointers();
 			if (coord_name == REAL) {
 				Print_Coord(set_coord, SET);
@@ -819,9 +822,12 @@ void Collects_Digits(int8_t coord_name)
 				//Goes to Select Mode
 				mode = SELECT;
 			} else if (coord_name == SET) {
-				Write_LCD_Buffer((char*)" Brush Moving Mode  ", LCD_ROW_SIZE, ROW_4);
+				//Write_LCD_Buffer((char*)"    Brush Moving    ", LCD_ROW_SIZE, ROW_4);
+				LCD_SendCommand(LCD_ADDR, ROW_4);
+				LCD_SendString(LCD_ADDR, "    Brush Moving    ");
 				Gets_Direction_and_Diff();
-				//Passes to Brush Move mode
+				Lock_Handle();
+				//Goes to Brush Move mode
 				mode = BRUSH_MOVE;
 			}
 		}
@@ -901,7 +907,6 @@ void Check_Pressed_Key()
 ///////////////////////////////////////////////////////////////////////////////
 //					Brush Moving Mode                                        //
 ///////////////////////////////////////////////////////////////////////////////
-int32_t encoder_value = 0;
 uint16_t speed = 0;
 
 /**
@@ -1027,6 +1032,24 @@ uint32_t Read_Coord()
 	return data;
 }
 
+
+void Check_Arrange_Out()
+{
+	if (real_coord > set_coord) {
+		real_coord = initial_coord - ((float)(abs(encoder_value)*1000)/12);
+	} else {
+		real_coord = initial_coord + ((float)(abs(encoder_value)*1000)/12);
+	}
+
+	if ((direction == FORWARD && real_coord >= HARD_LIMIT_UP) || (direction == BACK && real_coord <= LIMIT_DOWN)) {
+		Set_Inverter(STOP, speed);
+		Brush_Lock();
+		Save_Coord(real_coord);
+		HAL_DAC_Stop(&hdac, DAC_CHANNEL_1);
+		mode = CHECK_PEDAL;
+	}
+}
+
 /**
   * @brief	Moves the brush in the determined direction.
   * 		and at the specified speed.
@@ -1035,67 +1058,70 @@ uint32_t Read_Coord()
   */
 void Move_Brush()
 {
-	if (mode == BRUSH_MOVE) {
-		//if board is powered and brush is unlocked
-		//if (HAL_GPIO_ReadPin(Power_In_GPIO_Port, Power_In_Pin) == 1 &&
-		//		HAL_GPIO_ReadPin(Brush_Lock_GPIO_Port, Brush_Lock_Pin) == 0)
-		//{
-
-		if (real_coord > set_coord) {
-			real_coord = initial_coord - ((float)(12*abs(encoder_value))/1000);
-		} else {
-			real_coord = initial_coord + ((float)(12*abs(encoder_value))/1000);
-		}
-
-		if ((direction == FORWARD && real_coord >= HARD_LIMIT_UP) || (direction == BACK && real_coord <= LIMIT_DOWN)) {
-			Set_Inverter(STOP, speed);
-			Brush_Lock();
-			Save_Coord(real_coord);
-			mode = CHECK_PEDAL;
-		} else {
-			if ((encoder_diff - abs(encoder_value)) > DISTANCE_FOR_RAMP_DOWN) {
+	//if board is powered and brush is unlocked
+	//if (HAL_GPIO_ReadPin(Power_In_GPIO_Port, Power_In_Pin) == 1 &&
+	//		HAL_GPIO_ReadPin(Brush_Lock_GPIO_Port, Brush_Lock_Pin) == 0)
+	//{
+	if (direction == FORWARD) {
+		while((encoder_diff - abs(encoder_value)) > 0) {
+			//Check_Arrange_Out();
+			if (min_speed == 0) {
 				Change_Speed(&speed, RAMP_UP);
-				Set_Inverter(direction, speed);
-
-			} else if (((encoder_diff - abs(encoder_value)) <= DISTANCE_FOR_RAMP_DOWN) &&
-					((encoder_diff - abs(encoder_value)) > 5)) {
-				if (direction == FORWARD) {
-					direction = BACK;
-				}
+			}
+			Set_Inverter(FORWARD, speed);
+		}
+		while(((encoder_diff + MIN_ENCODER_VALUE) - abs(encoder_value)) > 0) {
+			//Check_Arrange_Out();
+			if (min_speed == 0) {
 				Change_Speed(&speed, RAMP_DOWN);
-				Set_Inverter(direction, speed);
-
-			} else {
-				//Turns off inverter
-				Set_Inverter(STOP, speed);
-				//Locks brush to fix it
-				Brush_Lock();
-
-				//To do write to LCD real coordinate
-				if (real_coord > set_coord) {
-					real_coord = initial_coord - ((float)(12*abs(encoder_value))/1000);
-				} else {
-					real_coord = initial_coord + ((float)(12*abs(encoder_value))/1000);
-				}
-
-				//Saves real coordinate to backup register
-				Save_Coord(real_coord);
-				encoder_value = 0;
-				//Prints real coordinate to LCD
-				Print_Coord(real_coord, REAL);
-				Write_LCD_Buffer((char*)"                    ", LCD_ROW_SIZE, ROW_4);
-				Unlock_Handle();
-				//Passes to CHECK_PEDAL mode
-				mode = CHECK_PEDAL;
+			}
+			Set_Inverter(FORWARD, speed);
+		}
+		while(abs(encoder_value) - encoder_diff > 0) {
+			//Check_Arrange_Out();
+			Set_Inverter(BACK, speed);
+		}
+	} else if (direction == BACK) {
+		if (min_speed == 0)
+		{
+			while(((encoder_diff - MIN_ENCODER_VALUE) - abs(encoder_value)) > 0) {
+				//Check_Arrange_Out();
+				Change_Speed(&speed, RAMP_UP);
+				Set_Inverter(BACK, speed);
+			}
+			while(((encoder_diff + MIN_ENCODER_VALUE) - abs(encoder_value)) > 0) {
+				//Check_Arrange_Out();
+				Change_Speed(&speed, RAMP_DOWN);
+				Set_Inverter(BACK, speed);
+			}
+		} else {
+			while((encoder_diff - abs(encoder_value)) > 0)
+			{
+				Set_Inverter(BACK, speed);
 			}
 		}
-
-		//Write_LCD_Buffer((char*)"                    ", LCD_ROW_SIZE, ROW_4);
-		//Unlock_Handle();
-		///Passes to CHECK_PEDAL mode
-		//mode = CHECK_PEDAL;
-
 	}
+	Reset_Pointers();
+	//Turns off inverter
+	Set_Inverter(STOP, speed);
+	HAL_DAC_Stop(&hdac, DAC_CHANNEL_1);
+	//Locks brush to fix it
+	Brush_Lock();
+	//To do write to LCD real coordinate
+	if (real_coord > set_coord) {
+		real_coord = initial_coord - ((float)(abs(encoder_value)*12)/1000);
+	} else {
+		real_coord = initial_coord + ((float)(abs(encoder_value)*12)/1000);
+	}
+	//Saves real coordinate to backup register
+	Save_Coord(real_coord);
+	//encoder_value = 0;
+	//Prints real coordinate to LCD
+	Print_Coord(real_coord, REAL);
+	Write_LCD_Buffer((char*)"                    ", LCD_ROW_SIZE, ROW_4);
+	Unlock_Handle();
+	//Goes to CHECK_PEDAL mode
+	mode = CHECK_PEDAL;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1288,6 +1314,7 @@ void Check_Pedal()
 			Write_LCD_Buffer((char*)"                    ", LCD_ROW_SIZE, ROW_4);
 			//coord_size = 0;
 			//memset(coord_array, '0', COORD_SIZE);
+			Unlock_Handle();
 		}
 		if (!Empty(keypad_buf_length)) {
 			uint8_t data = Read_Keypad_Buffer(keypad_buffer);
@@ -1301,8 +1328,9 @@ void Check_Pedal()
 		}
 		if (input_state.hand_catch_is_pressed == 1)
 		{
+			Brush_Unlock();
 			mode = HAND_CATCH;
-			//anjatel argelak@
+
 		}
 	}
 	old_temp = temp;
@@ -1340,6 +1368,7 @@ void Check_Hand_Catch()
 	} else {
 		if (hand_catch_detected == 1) {
 			hand_catch_detected = 0;
+			Brush_Lock();
 
 			float temp_value = ((float)abs(encoder_value)*12)/1000;
 
@@ -1365,24 +1394,7 @@ void Check_Hand_Catch()
 ///////////////////////////////////////////////////////////////////////////////
 void Main_Task()
 {
-	  /*if ((mode == APPLY_MODE) || (mode == EDIT) || (mode == CALLIBRATION)) {
-		  Check_Pressed_Key();
-	  } else if (mode == BRUSH_MOVE) {
-		  Move_Brush();
-	  } else if (mode == CHECK_PEDAL) {
-		  Check_Pedal();
-	  }
-
-	  Check_Hand_Catch();*/
 	  LCD_Write(LCD_ADDR);
-
-	  /*if (encoder_time == 100)
-	  {
-		  	  char hex[10];
-
-		  	  sprintf(hex, "%d\n\r", encoder_value);
-		  	  HAL_UART_Transmit(&huart3, hex, 10, 0xFFFF);
-	  }*/
 
 	  if (keypad_timeout == KEYPAD_TIMEOUT) {
 		  keypad_timeout = 0;
@@ -1404,13 +1416,11 @@ void state_machine()
 		}
 		case CALLIBRATION:
 		{
-			//read_keypad ....
 			Collects_Digits(REAL);
 			break;
 		}
 		case EDIT:
 		{
-			//read_keypad ....
 			Collects_Digits(SET);
 			break;
 		}
