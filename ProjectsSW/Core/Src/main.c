@@ -237,7 +237,7 @@ static void Print_Initial_Status()
 	LCD_SendString(LCD_ADDR, buf);
 
 	LCD_SendCommand(LCD_ADDR, 0xD4);
-	LCD_SendString(LCD_ADDR, " *-Edit #-Cut C-Cal ");
+	LCD_SendString(LCD_ADDR, "   Are you sure?    ");
 }
 /* USER CODE END 4 */
 

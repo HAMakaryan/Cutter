@@ -846,7 +846,7 @@ void Collects_Digits(int8_t coord_name)
 			if (coord_name == REAL) {
 				Print_Coord(set_coord, SET);
 				Write_LCD_Buffer((char*)"                    ", LCD_ROW_SIZE, ROW_3);
-				Write_LCD_Buffer((char*)" *-Edit #-Cut C-Cal ", LCD_ROW_SIZE, ROW_4);
+				Write_LCD_Buffer((char*) "   Are you sure?    ", LCD_ROW_SIZE, ROW_4);
 				Save_Coord(real_coord);
 				//Goes to Select Mode
 				mode = SELECT;
@@ -1155,6 +1155,7 @@ void Move_Brush()
 	Print_Coord(real_coord, REAL);
 	Write_LCD_Buffer((char*)"                    ", LCD_ROW_SIZE, ROW_4);
 	Unlock_Handle();
+	encoder_value = 0;
 	//Goes to CHECK_PEDAL mode
 	mode = CHECK_PEDAL;
 }
@@ -1358,12 +1359,13 @@ void Check_Pedal()
 			if (data == '*') {
 				mode = SELECT;
 				Reset_Pointers();
-				Write_LCD_Buffer((char*)" *-Edit #-Cut C-Cal ", LCD_ROW_SIZE, ROW_4);
+				Write_LCD_Buffer((char*)"   Are you sure?    ", LCD_ROW_SIZE, ROW_4);
 			}
 		}
 		if (input_state.hand_catch_is_pressed == 1)
 		{
 			Brush_Unlock();
+			Write_LCD_Buffer((char*)"   Hand catching    ", LCD_ROW_SIZE, ROW_4);
 			mode = HAND_CATCH;
 
 		}
@@ -1420,6 +1422,8 @@ void Check_Hand_Catch()
 			Save_Coord(real_coord);
 			//Resets encoder value
 			encoder_value = 0;
+			Write_LCD_Buffer((char*)"                    ", LCD_ROW_SIZE, ROW_4);
+			mode = CHECK_PEDAL;
 		}
 	}
 }
