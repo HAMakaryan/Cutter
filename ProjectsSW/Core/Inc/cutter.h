@@ -26,6 +26,7 @@
 #define KEYPAD_BUF_SIZE		16
 #define DEBOUNCE_TIME		10
 #define KEYPAD_TIMEOUT		5 //every 5 ms
+#define INPUT_TIMEOUT		5 //every 5 ms
 #define ROW_1				0x80
 #define ROW_2				0xC0
 #define ROW_3				0x94

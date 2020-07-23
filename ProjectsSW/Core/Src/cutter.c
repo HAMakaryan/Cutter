@@ -192,34 +192,31 @@ uint16_t LCD_Read_Buffer()
 void LCD_Write(uint8_t lcd_addr)
 {
 	//every ms
-	if (lcd_timeout == LCD_TIMEOUT) {
-		lcd_timeout = 0;
-		if (!Empty(lcd_buf_length)) {
-			uint16_t data = LCD_Read_Buffer();
-			uint8_t up = data & 0xF0;
-			uint8_t lo = (data << 4) & 0xF0;
-			uint8_t rs = 0;
-			rs = PIN_RS;
+	if (!Empty(lcd_buf_length)) {
+		uint16_t data = LCD_Read_Buffer();
+		uint8_t up = data & 0xF0;
+		uint8_t lo = (data << 4) & 0xF0;
+		uint8_t rs = 0;
+		rs = PIN_RS;
 
-			//if data
-			if ((data & LCD_DATA_MASK) == LCD_DATA_MASK) {
-				data_arr[0] = up|rs|BACKLIGHT|PIN_EN;
-				data_arr[1] = up|rs|BACKLIGHT;
-				data_arr[2] = lo|rs|BACKLIGHT|PIN_EN;
-				data_arr[3] = lo|rs|BACKLIGHT;
-			//if command
-			} else {
-				rs = 0;
-				data_arr[0] = up|rs|BACKLIGHT|PIN_EN;
-				data_arr[1] = up|rs|BACKLIGHT;
-				data_arr[2] = lo|rs|BACKLIGHT|PIN_EN;
-				data_arr[3] = lo|rs|BACKLIGHT;
-			}
+		//if data
+		if ((data & LCD_DATA_MASK) == LCD_DATA_MASK) {
+			data_arr[0] = up|rs|BACKLIGHT|PIN_EN;
+			data_arr[1] = up|rs|BACKLIGHT;
+			data_arr[2] = lo|rs|BACKLIGHT|PIN_EN;
+			data_arr[3] = lo|rs|BACKLIGHT;
+		//if command
+		} else {
+			rs = 0;
+			data_arr[0] = up|rs|BACKLIGHT|PIN_EN;
+			data_arr[1] = up|rs|BACKLIGHT;
+			data_arr[2] = lo|rs|BACKLIGHT|PIN_EN;
+			data_arr[3] = lo|rs|BACKLIGHT;
+		}
 
-			if (completed == 1) {
-				completed = 0;
-				HAL_I2C_Master_Transmit_IT(&hi2c1, lcd_addr, data_arr, 4);
-			}
+		if (completed == 1) {
+			completed = 0;
+			HAL_I2C_Master_Transmit_IT(&hi2c1, lcd_addr, data_arr, 4);
 		}
 	}
 }
@@ -261,6 +258,7 @@ void HAL_I2C_ErrorCallback(I2C_HandleTypeDef *hi2c)
 //									KEYPAD									 //
 ///////////////////////////////////////////////////////////////////////////////
 uint8_t keypad_timeout = 0;
+uint8_t input_timeout = 0;
 uint8_t pos[ROW_SIZE] = {1, 2, 4, 8};
 uint8_t keypad_buf_length = 0;
 uint8_t keypad_wr_pnt = 0;
@@ -771,44 +769,75 @@ void Collects_Digits(int8_t coord_name)
 
 	if (data == '#') {
 		number_accept_count++;
-
 		if (number_accept_count == 1) {
 			Reset_Pointers();
 			//Creates number from collected digits
 			if (coord_name == SET) {
 				set_coord = Create_Number(coord_array);
-				if (set_coord < LIMIT_DOWN) {
-					//set_coord = 0;
-					/*coord_size = 3;
+				if (set_coord < LIMIT_DOWN || set_coord > SOFT_LIMIT_UP) {
+					number_accept_count = 0;
 					uint8_t temp_buf[10];
-					sprintf(temp_buf+1, "%6.1f", (float)LIMIT_DOWN);
+					if (set_coord < LIMIT_DOWN) {
+						sprintf(temp_buf, "%6.1f", (float)LIMIT_DOWN);
+					} else if (set_coord > SOFT_LIMIT_UP) {
+						sprintf(temp_buf, "%6.1f", (float)SOFT_LIMIT_UP);
+					}
+					for (int i = 0; i < sizeof(temp_buf); ++i) {
+					  if (temp_buf[i] == 0x20) {
+						  temp_buf[i] = '0';
+					  }
+					}
+					coord_array[0] = temp_buf[0];
 					coord_array[1] = temp_buf[1];
 					coord_array[2] = temp_buf[2];
 					coord_array[3] = temp_buf[3];
-					coord_array[4] = temp_buf[4];
-					coord_array[5] = temp_buf[6];
-					Write_LCD_Buffer((char*)" Min", 4, 0xCE);
-					Write_LCD_Buffer(coord_array, 7, ROW_2);*/
+					coord_array[4] = temp_buf[5];
 
-				} else 	if (set_coord > SOFT_LIMIT_UP) {
-					//set_coord = 0;
-					/*coord_size = 5;
-					sprintf(coord_array+1, "%6.1f", (float)SOFT_LIMIT_UP);
-					coord_array[5] = '0';
-					Write_LCD_Buffer((char*)" Max", 4, 0xCE);
-					Write_LCD_Buffer(coord_array, 7, ROW_2);*/
+					if (set_coord < LIMIT_DOWN) {
+						Write_LCD_Buffer((char*)"Min", 3, 0xCE);
+					} else if (set_coord > SOFT_LIMIT_UP) {
+						Write_LCD_Buffer((char*)"Max", 3, 0xCE);
+					}
+					Write_LCD_Buffer(coord_array, COORD_SIZE, S_COORD_POS);
+
+				} else {
+					Write_LCD_Buffer((char*)"   Are you sure?    ", LCD_ROW_SIZE, ROW_4);
+					Write_LCD_Buffer((char*)"   ", 3, 0xCE);
 				}
 			} else if (coord_name == REAL) {
 				real_coord = Create_Number(coord_array);
 				if (real_coord < LIMIT_DOWN || real_coord > SOFT_LIMIT_UP) {
-					//real_coord = 0;
-					/*coord_size = 0;
-					memset(coord_array, '0', COORD_SIZE);
-					Write_LCD_Buffer((char*)"  Wrong parameter   ", LCD_ROW_SIZE, ROW_3);
-					Write_LCD_Buffer(coord_array, COORD_SIZE, ROW_1);*/
+					number_accept_count = 0;
+					uint8_t temp_buf[10];
+					if (real_coord < LIMIT_DOWN) {
+						sprintf(temp_buf, "%6.1f", (float)LIMIT_DOWN);
+					} else if (real_coord > SOFT_LIMIT_UP) {
+						sprintf(temp_buf, "%6.1f", (float)SOFT_LIMIT_UP);
+					}
+					for (int i = 0; i < sizeof(temp_buf); ++i) {
+					  if (temp_buf[i] == 0x20) {
+						  temp_buf[i] = '0';
+					  }
+					}
+					coord_array[0] = temp_buf[0];
+					coord_array[1] = temp_buf[1];
+					coord_array[2] = temp_buf[2];
+					coord_array[3] = temp_buf[3];
+					coord_array[4] = temp_buf[5];
+
+					if (real_coord < LIMIT_DOWN) {
+						Write_LCD_Buffer((char*)"Min", 3, 0x8E);
+					} else if (real_coord > SOFT_LIMIT_UP) {
+						Write_LCD_Buffer((char*)"Max", 3, 0x8E);
+					}
+					Write_LCD_Buffer(coord_array, COORD_SIZE, R_COORD_POS);
+
+				} else {
+					Write_LCD_Buffer((char*)"   Are you sure?    ", LCD_ROW_SIZE, ROW_4);
+					Write_LCD_Buffer((char*)"   ", 3, 0x8E);
 				}
 			}
-			Write_LCD_Buffer((char*)"   Are you sure?    ", LCD_ROW_SIZE, ROW_4);
+
 
 		} else if (number_accept_count == 2) {
 			number_accept_count = 0;
@@ -824,11 +853,17 @@ void Collects_Digits(int8_t coord_name)
 			} else if (coord_name == SET) {
 				//Write_LCD_Buffer((char*)"    Brush Moving    ", LCD_ROW_SIZE, ROW_4);
 				LCD_SendCommand(LCD_ADDR, ROW_4);
-				LCD_SendString(LCD_ADDR, "    Brush Moving    ");
-				Gets_Direction_and_Diff();
-				Lock_Handle();
-				//Goes to Brush Move mode
-				mode = BRUSH_MOVE;
+				if (real_coord != set_coord)
+				{
+					LCD_SendString(LCD_ADDR, "    Brush Moving    ");
+					Gets_Direction_and_Diff();
+					Lock_Handle();
+					//Goes to Brush Move mode
+					mode = BRUSH_MOVE;
+				} else {
+					LCD_SendString(LCD_ADDR, "                    ");
+					mode = CHECK_PEDAL;
+				}
 			}
 		}
 	}
@@ -1089,7 +1124,7 @@ void Move_Brush()
 				Change_Speed(&speed, RAMP_UP);
 				Set_Inverter(BACK, speed);
 			}
-			while(((encoder_diff + MIN_ENCODER_VALUE) - abs(encoder_value)) > 0) {
+			while((encoder_diff - abs(encoder_value)) > 0) {
 				//Check_Arrange_Out();
 				Change_Speed(&speed, RAMP_DOWN);
 				Set_Inverter(BACK, speed);
@@ -1394,15 +1429,15 @@ void Check_Hand_Catch()
 ///////////////////////////////////////////////////////////////////////////////
 void Main_Task()
 {
-	  LCD_Write(LCD_ADDR);
-
-	  if (keypad_timeout == KEYPAD_TIMEOUT) {
-		  keypad_timeout = 0;
-		  Read_Keypad();
-		  Read_Inputs();
-	  }
-
-	  state_machine();
+	if (lcd_timeout == LCD_TIMEOUT) {
+		lcd_timeout = 0;
+		LCD_Write(LCD_ADDR);
+	}
+	if (input_timeout == INPUT_TIMEOUT) {
+		input_timeout = 0;
+		Read_Inputs();
+	}
+	state_machine();
 }
 
 void state_machine()
@@ -1411,16 +1446,28 @@ void state_machine()
 	{
 		case SELECT:
 		{
+			if (keypad_timeout == KEYPAD_TIMEOUT) {
+				keypad_timeout = 0;
+				Read_Keypad();
+			}
 			Check_Pressed_Key();
 			break;
 		}
 		case CALLIBRATION:
 		{
+			if (keypad_timeout == KEYPAD_TIMEOUT) {
+				keypad_timeout = 0;
+				Read_Keypad();
+			}
 			Collects_Digits(REAL);
 			break;
 		}
 		case EDIT:
 		{
+			if (keypad_timeout == KEYPAD_TIMEOUT) {
+				keypad_timeout = 0;
+				Read_Keypad();
+			}
 			Collects_Digits(SET);
 			break;
 		}
@@ -1431,6 +1478,10 @@ void state_machine()
 		}
 		case CHECK_PEDAL:
 		{
+			if (keypad_timeout == KEYPAD_TIMEOUT) {
+				keypad_timeout = 0;
+				Read_Keypad();
+			}
 			Check_Pedal();
 			break;
 		}

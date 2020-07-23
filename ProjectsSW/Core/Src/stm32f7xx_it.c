@@ -60,6 +60,7 @@ extern I2C_HandleTypeDef hi2c1;
 extern TIM_HandleTypeDef htim4;
 /* USER CODE BEGIN EV */
 extern uint8_t keypad_timeout;
+extern uint8_t input_timeout;
 extern uint8_t lcd_timeout;
 extern uint8_t encoder_time;
 extern uint16_t delay_for_cutting_buttons;
@@ -196,6 +197,10 @@ void SysTick_Handler(void)
   if (keypad_timeout < KEYPAD_TIMEOUT)
   {
 	  keypad_timeout++;
+  }
+  if (input_timeout < INPUT_TIMEOUT)
+  {
+	  input_timeout++;
   }
 
   if (encoder_time < 100)
