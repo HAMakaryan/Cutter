@@ -846,7 +846,7 @@ void Collects_Digits(int8_t coord_name)
 			if (coord_name == REAL) {
 				Print_Coord(set_coord, SET);
 				Write_LCD_Buffer((char*)"                    ", LCD_ROW_SIZE, ROW_3);
-				Write_LCD_Buffer((char*) "   Are you sure?    ", LCD_ROW_SIZE, ROW_4);
+				Write_LCD_Buffer((char*) " *-Edit #-Cut C-Cal ", LCD_ROW_SIZE, ROW_4);
 				Save_Coord(real_coord);
 				//Goes to Select Mode
 				mode = SELECT;
@@ -1068,21 +1068,20 @@ uint32_t Read_Coord()
 }
 
 
-void Check_Arrange_Out()
+uint8_t Check_Arrange_Out()
 {
-	if (real_coord > set_coord) {
-		real_coord = initial_coord - ((float)(abs(encoder_value)*1000)/12);
+	if (direction == BACK) {
+		real_coord = initial_coord - ((float)(abs(encoder_value)*12)/1000);
 	} else {
-		real_coord = initial_coord + ((float)(abs(encoder_value)*1000)/12);
+		real_coord = initial_coord + ((float)(abs(encoder_value)*12)/1000);
 	}
 
 	if ((direction == FORWARD && real_coord >= HARD_LIMIT_UP) || (direction == BACK && real_coord <= LIMIT_DOWN)) {
 		Set_Inverter(STOP, speed);
 		Brush_Lock();
-		Save_Coord(real_coord);
-		HAL_DAC_Stop(&hdac, DAC_CHANNEL_1);
-		mode = CHECK_PEDAL;
+		return 1;
 	}
+	return 0;
 }
 
 /**
@@ -1091,6 +1090,7 @@ void Check_Arrange_Out()
   * @param	None
   * @retval None
   */
+uint8_t arrange_out = 0;
 void Move_Brush()
 {
 	//if board is powered and brush is unlocked
@@ -1099,35 +1099,44 @@ void Move_Brush()
 	//{
 	if (direction == FORWARD) {
 		while((encoder_diff - abs(encoder_value)) > 0) {
-			//Check_Arrange_Out();
+			if (Check_Arrange_Out() == 1) {arrange_out = 1; break;}
 			if (min_speed == 0) {
 				Change_Speed(&speed, RAMP_UP);
 			}
 			Set_Inverter(FORWARD, speed);
 		}
-		while(((encoder_diff + MIN_ENCODER_VALUE) - abs(encoder_value)) > 0) {
-			//Check_Arrange_Out();
-			if (min_speed == 0) {
-				Change_Speed(&speed, RAMP_DOWN);
+		if (arrange_out == 0)
+		{
+			while(((encoder_diff + MIN_ENCODER_VALUE) - abs(encoder_value)) > 0) {
+				if (Check_Arrange_Out() == 1) {arrange_out = 1;break;}
+				if (min_speed == 0) {
+					Change_Speed(&speed, RAMP_DOWN);
+				}
+				Set_Inverter(FORWARD, speed);
 			}
-			Set_Inverter(FORWARD, speed);
 		}
-		while(abs(encoder_value) - encoder_diff > 0) {
-			//Check_Arrange_Out();
-			Set_Inverter(BACK, speed);
+		if (arrange_out == 0)
+		{
+			while(abs(encoder_value) - encoder_diff > 0) {
+				if (Check_Arrange_Out() == 1) {break;}
+				Set_Inverter(BACK, speed);
+			}
 		}
 	} else if (direction == BACK) {
 		if (min_speed == 0)
 		{
 			while(((encoder_diff - MIN_ENCODER_VALUE) - abs(encoder_value)) > 0) {
-				//Check_Arrange_Out();
+				if (Check_Arrange_Out() == 1) {arrange_out = 1;break;}
 				Change_Speed(&speed, RAMP_UP);
 				Set_Inverter(BACK, speed);
 			}
-			while((encoder_diff - abs(encoder_value)) > 0) {
-				//Check_Arrange_Out();
-				Change_Speed(&speed, RAMP_DOWN);
-				Set_Inverter(BACK, speed);
+			if (arrange_out == 0)
+			{
+				while((encoder_diff - abs(encoder_value)) > 0) {
+					if (Check_Arrange_Out() == 1) {break;}
+					Change_Speed(&speed, RAMP_DOWN);
+					Set_Inverter(BACK, speed);
+				}
 			}
 		} else {
 			while((encoder_diff - abs(encoder_value)) > 0)
@@ -1136,6 +1145,7 @@ void Move_Brush()
 			}
 		}
 	}
+	arrange_out = 0;
 	Reset_Pointers();
 	//Turns off inverter
 	Set_Inverter(STOP, speed);
@@ -1143,7 +1153,8 @@ void Move_Brush()
 	//Locks brush to fix it
 	Brush_Lock();
 	//To do write to LCD real coordinate
-	if (real_coord > set_coord) {
+
+	if (direction == BACK) {
 		real_coord = initial_coord - ((float)(abs(encoder_value)*12)/1000);
 	} else {
 		real_coord = initial_coord + ((float)(abs(encoder_value)*12)/1000);
@@ -1359,7 +1370,7 @@ void Check_Pedal()
 			if (data == '*') {
 				mode = SELECT;
 				Reset_Pointers();
-				Write_LCD_Buffer((char*)"   Are you sure?    ", LCD_ROW_SIZE, ROW_4);
+				Write_LCD_Buffer((char*)" *-Edit #-Cut C-Cal ", LCD_ROW_SIZE, ROW_4);
 			}
 		}
 		if (input_state.hand_catch_is_pressed == 1)

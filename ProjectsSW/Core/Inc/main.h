@@ -103,6 +103,8 @@ void Error_Handler(void);
 #define Press_Again_GPIO_Port GPIOE
 #define Hand_Catch_Pin GPIO_PIN_9
 #define Hand_Catch_GPIO_Port GPIOE
+#define Air_Button_Pin GPIO_PIN_10
+#define Air_Button_GPIO_Port GPIOE
 #define Brush_Forward_Pin GPIO_PIN_12
 #define Brush_Forward_GPIO_Port GPIOE
 #define Cutting_Pin GPIO_PIN_13

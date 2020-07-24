@@ -62,10 +62,9 @@ extern uint8_t number_accept_count;
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
-static void Read_Real_Coord(void);
-static void Print_Initial_Status();
 /* USER CODE BEGIN PFP */
-
+static void Read_Real_Coord();
+static void Print_Initial_Status();
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -237,7 +236,7 @@ static void Print_Initial_Status()
 	LCD_SendString(LCD_ADDR, buf);
 
 	LCD_SendCommand(LCD_ADDR, 0xD4);
-	LCD_SendString(LCD_ADDR, "   Are you sure?    ");
+	LCD_SendString(LCD_ADDR, " *-Edit #-Cut C-Cal ");
 }
 /* USER CODE END 4 */
 
