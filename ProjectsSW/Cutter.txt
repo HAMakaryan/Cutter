@@ -1,6 +1,6 @@
 Configuration	Cutter
 STM32CubeMX 	5.6.1
-Date	06/15/2020
+Date	08/01/2020
 MCU	STM32F767ZITx
 
 
@@ -81,6 +81,7 @@ Pin Nb	PINs	FUNCTIONs	LABELs
 58	PE7	GPIO_Input	Cutting_Buttons [To cut the paper]
 59	PE8	GPIO_Output	Press_Again [To press the paper]
 60	PE9	GPIO_Input	Hand_Catch [Hand catch detection pin]
+63	PE10	GPIO_Output	Air_Out
 65	PE12	GPIO_Output	Brush_Forward [Moves the brush forward]
 66	PE13	GPIO_Output	Cutting [On/Off cutting]
 67	PE14	GPIO_Output	Brush_Back [Moves the brush back]
@@ -202,6 +203,7 @@ Pin Nb	PINs	FUNCTIONs	LABELs
 58	PE7	GPIO_Input	Cutting_Buttons [To cut the paper]
 59	PE8	GPIO_Output	Press_Again [To press the paper]
 60	PE9	GPIO_Input	Hand_Catch [Hand catch detection pin]
+63	PE10	GPIO_Output	Air_Out
 65	PE12	GPIO_Output	Brush_Forward [Moves the brush forward]
 66	PE13	GPIO_Output	Cutting [On/Off cutting]
 67	PE14	GPIO_Output	Brush_Back [Moves the brush back]

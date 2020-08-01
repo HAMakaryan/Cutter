@@ -64,6 +64,9 @@ void MX_GPIO_Init(void)
                           |Brush_Lock_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(Air_Out_GPIO_Port, Air_Out_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(Relay_4_GPIO_Port, Relay_4_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin Output Level */
@@ -85,11 +88,11 @@ void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOF, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PFPin PFPin */
-  GPIO_InitStruct.Pin = Power_In_Pin|Pedal_In_Pin;
+  /*Configure GPIO pin : PtPin */
+  GPIO_InitStruct.Pin = Power_In_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(GPIOF, &GPIO_InitStruct);
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  HAL_GPIO_Init(Power_In_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pins : PBPin PBPin PBPin PBPin 
                            PBPin PBPin PBPin PBPin 
@@ -108,16 +111,22 @@ void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_PULLDOWN;
   HAL_GPIO_Init(GPIOF, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PEPin PEPin PEPin */
-  GPIO_InitStruct.Pin = Cutting_Buttons_Pin|Hand_Catch_Pin|Air_Button_Pin;
+  /*Configure GPIO pin : PtPin */
+  GPIO_InitStruct.Pin = Pedal_In_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(Pedal_In_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : PEPin PEPin */
+  GPIO_InitStruct.Pin = Cutting_Buttons_Pin|Hand_Catch_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 
   /*Configure GPIO pins : PEPin PEPin PEPin PEPin 
-                           PEPin */
-  GPIO_InitStruct.Pin = Press_Again_Pin|Brush_Forward_Pin|Cutting_Pin|Brush_Back_Pin 
-                          |Brush_Lock_Pin;
+                           PEPin PEPin */
+  GPIO_InitStruct.Pin = Press_Again_Pin|Air_Out_Pin|Brush_Forward_Pin|Cutting_Pin 
+                          |Brush_Back_Pin|Brush_Lock_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;

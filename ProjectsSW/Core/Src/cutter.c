@@ -20,9 +20,6 @@ extern RTC_HandleTypeDef hrtc;
 extern TIM_HandleTypeDef htim4;
 extern DAC_HandleTypeDef hdac;
 
-///////////////////////////////////////////////////////////////////////////////
-//							       LCD									     //
-///////////////////////////////////////////////////////////////////////////////
 uint8_t lcd_buf_length = 0;
 uint8_t lcd_write_pnt = 0;
 uint8_t lcd_read_pnt = 0;
@@ -31,6 +28,61 @@ uint8_t completed = 1;
 uint8_t data_arr[4];
 uint16_t lcd_ring_buffer[LCD_BUF_SIZE];
 
+uint8_t keypad_timeout = 0;
+uint8_t input_timeout = 0;
+uint8_t pos[ROW_SIZE] = {1, 2, 4, 8};
+uint8_t keypad_buf_length = 0;
+uint8_t keypad_wr_pnt = 0;
+uint8_t keypad_rd_pnt = 0;
+char 	keypad_buffer[KEYPAD_BUF_SIZE];
+
+GPIO_TypeDef* row_gpio_port[ROW_SIZE] = {Row0_GPIO_Port, Row1_GPIO_Port,
+										Row2_GPIO_Port, Row3_GPIO_Port};
+GPIO_TypeDef* col_gpio_port[COL_SIZE] = {Col0_GPIO_Port, Col1_GPIO_Port,
+										Col2_GPIO_Port, Col3_GPIO_Port};
+uint16_t row_gpio_pin[ROW_SIZE] = {Row0_Pin, Row1_Pin, Row2_Pin, Row3_Pin};
+uint16_t col_gpio_pin[COL_SIZE] = {Col0_Pin, Col1_Pin, Col2_Pin, Col3_Pin};
+
+uint8_t state = IDLE;
+uint8_t new_pressed_key = 0;
+uint8_t old_pressed_key = 0;
+uint8_t debounce = 0;
+uint8_t row_key = 0;
+uint8_t col_key = 0;
+
+uint8_t coord_size 			= 0;
+uint8_t number_accept_count = 0;
+uint8_t mode 				= SELECT;
+uint8_t direction 			= 0;
+uint8_t min_speed			= 0;
+char coord_array[COORD_SIZE];
+uint32_t encoder_diff 		= 0;
+float set_coord 			= 0;
+float initial_coord			= 0;
+float coord_diff 			= 0;
+int32_t encoder_value 		= 0;
+extern float real_coord;
+
+uint16_t speed = MIN_SPEED;
+
+uint8_t arrange_out = 0;
+uint16_t timeout_for_ramp = 0;
+uint8_t is_move = 0;
+extern uint8_t time_for_change_ramp;
+
+Input_State input_state;
+uint8_t cut_is_done = 0;
+uint16_t delay_for_cutting_buttons = 0;
+uint16_t delay_for_cutting = 0;
+
+uint8_t pedal_is_pressed = 0;
+uint8_t temp = 0;
+uint8_t old_temp = 0;
+
+uint8_t hand_catch_detected = 0;
+///////////////////////////////////////////////////////////////////////////////
+//							       LCD									     //
+///////////////////////////////////////////////////////////////////////////////
 /**
   * @brief	Sends data to LCD with blocking mode.
   * @param	LCD address
@@ -257,28 +309,6 @@ void HAL_I2C_ErrorCallback(I2C_HandleTypeDef *hi2c)
 ///////////////////////////////////////////////////////////////////////////////
 //									KEYPAD									 //
 ///////////////////////////////////////////////////////////////////////////////
-uint8_t keypad_timeout = 0;
-uint8_t input_timeout = 0;
-uint8_t pos[ROW_SIZE] = {1, 2, 4, 8};
-uint8_t keypad_buf_length = 0;
-uint8_t keypad_wr_pnt = 0;
-uint8_t keypad_rd_pnt = 0;
-char 	keypad_buffer[KEYPAD_BUF_SIZE];
-
-GPIO_TypeDef* row_gpio_port[ROW_SIZE] = {Row0_GPIO_Port, Row1_GPIO_Port,
-										Row2_GPIO_Port, Row3_GPIO_Port};
-GPIO_TypeDef* col_gpio_port[COL_SIZE] = {Col0_GPIO_Port, Col1_GPIO_Port,
-										Col2_GPIO_Port, Col3_GPIO_Port};
-uint16_t row_gpio_pin[ROW_SIZE] = {Row0_Pin, Row1_Pin, Row2_Pin, Row3_Pin};
-uint16_t col_gpio_pin[COL_SIZE] = {Col0_Pin, Col1_Pin, Col2_Pin, Col3_Pin};
-
-uint8_t state = IDLE;
-uint8_t new_pressed_key = 0;
-uint8_t old_pressed_key = 0;
-uint8_t debounce = 0;
-uint8_t row_key = 0;
-uint8_t col_key = 0;
-
 /**
   * @brief	Initializes the keypad(4x4).
   * @param	None
@@ -594,21 +624,6 @@ void Read_Keypad()
 ///////////////////////////////////////////////////////////////////////////////
 //							CHANGE COORDINATE								 //
 ///////////////////////////////////////////////////////////////////////////////
-uint8_t coord_size 			= 0;
-uint8_t number_accept_count = 0;
-uint8_t mode 				= SELECT;
-uint8_t direction 			= 0;
-uint8_t min_speed			= 0;
-char coord_array[COORD_SIZE];
-uint32_t encoder_diff 		= 0;
-float set_coord 			= 0;
-float initial_coord			= 0;
-float coord_diff 			= 0;
-uint16_t inverter_speed		= MIN_SPEED;
-int32_t encoder_value 		= 0;
-
-extern float real_coord;
-
 void Lock_Handle()
 {
 	HAL_GPIO_WritePin(Lock_GPIO_Port, Lock_Pin, GPIO_PIN_RESET);
@@ -683,18 +698,12 @@ void Gets_Direction_and_Diff()
 	}
 
 	if (encoder_diff < MIN_DISTANCE) {
-		inverter_speed = MIN_SPEED;
+		speed = MIN_SPEED;
 		min_speed = 1;
 	} else {
-		inverter_speed = 0;
+		speed = 0;
 		min_speed = 0;
 	}
-	//Unlocks brush to move it
-	Brush_Unlock();
-	//Starts DAC
-	HAL_DAC_Start(&hdac, DAC_CHANNEL_1);
-	encoder_value = 0;
-	//Set_Inverter(direction, inverter_speed);
 }
 
 void Collects_Digits(int8_t coord_name)
@@ -858,6 +867,11 @@ void Collects_Digits(int8_t coord_name)
 					LCD_SendString(LCD_ADDR, "    Brush Moving    ");
 					Gets_Direction_and_Diff();
 					Lock_Handle();
+					//Unlocks brush to move it
+					Brush_Unlock();
+					//Starts DAC
+					encoder_value = 0;
+					HAL_DAC_Start(&hdac, DAC_CHANNEL_1);
 					//Goes to Brush Move mode
 					mode = BRUSH_MOVE;
 				} else {
@@ -942,8 +956,6 @@ void Check_Pressed_Key()
 ///////////////////////////////////////////////////////////////////////////////
 //					Brush Moving Mode                                        //
 ///////////////////////////////////////////////////////////////////////////////
-uint16_t speed = 0;
-
 /**
   * @brief	Sets the direction and the speed of the inverter.
   * @param  Direction of the inverter
@@ -1067,7 +1079,6 @@ uint32_t Read_Coord()
 	return data;
 }
 
-
 uint8_t Check_Arrange_Out()
 {
 	if (direction == BACK) {
@@ -1090,11 +1101,6 @@ uint8_t Check_Arrange_Out()
   * @param	None
   * @retval None
   */
-uint8_t arrange_out = 0;
-uint16_t timeout_for_ramp = 0;
-uint8_t is_move = 0;
-extern uint8_t time_for_change_ramp;
-
 void Move_Brush()
 {
 	if (direction == FORWARD) {
@@ -1200,11 +1206,6 @@ void Move_Brush()
 ///////////////////////////////////////////////////////////////////////////////
 //					     CUTTING MODE										 //
 ///////////////////////////////////////////////////////////////////////////////
-Input_State input_state;
-uint8_t cut_is_done = 0;
-uint16_t delay_for_cutting_buttons = 0;
-uint16_t delay_for_cutting = 0;
-
 /**
   * @brief	Reads specified inputs.
   * @param	None
@@ -1325,9 +1326,15 @@ uint8_t Read_Knife_Sensors(void)
 	return 0;
 }
 
-uint8_t pedal_is_pressed = 0;
-uint8_t temp = 0;
-uint8_t old_temp = 0;
+void Air_Out_On()
+{
+	HAL_GPIO_WritePin(Air_Out_GPIO_Port, Air_Out_Pin, GPIO_PIN_RESET);
+}
+
+void Air_Out_Off()
+{
+	HAL_GPIO_WritePin(Air_Out_GPIO_Port, Air_Out_Pin, GPIO_PIN_SET);
+}
 
 void Check_Pedal()
 {
@@ -1339,6 +1346,7 @@ void Check_Pedal()
 		if (delay_for_cutting_buttons == TIMEOUT_TO_ACTIVATE_CUTTING_BUTTON) {
 			//Activates cuttings button
 			Cutting_Button_On();
+			Air_Out_On();
 
 			if ((input_state.cut_is_pressed == 1) && (cut_is_done == 0)) {
 				//if passed 3 second
@@ -1380,6 +1388,7 @@ void Check_Pedal()
 			delay_for_cutting_buttons = 0;
 			delay_for_cutting = 0;
 			Cutting_Button_Off();
+			Air_Out_Off();
 			Write_LCD_Buffer((char*)"                    ", LCD_ROW_SIZE, ROW_4);
 			Unlock_Handle();
 		}
@@ -1411,8 +1420,6 @@ void Check_Pedal()
 ///////////////////////////////////////////////////////////////////////////////
 //							HAND CATCH										 //
 ///////////////////////////////////////////////////////////////////////////////
-uint8_t hand_catch_detected = 0;
-
 void Print_Coord(float r_coord, uint8_t coord_name)
 {
 	char temp_buf[10];
@@ -1513,11 +1520,11 @@ void state_machine()
 		case BRUSH_MOVE:
 		{
 			//if board is powered and brush is unlocked
-			//if (HAL_GPIO_ReadPin(Power_In_GPIO_Port, Power_In_Pin) == 1 &&
-			//		HAL_GPIO_ReadPin(Brush_Lock_GPIO_Port, Brush_Lock_Pin) == 0)
-			//{
+			if (HAL_GPIO_ReadPin(Power_In_GPIO_Port, Power_In_Pin) == 1 &&
+					HAL_GPIO_ReadPin(Brush_Lock_GPIO_Port, Brush_Lock_Pin) == 0)
+			{
 				Move_Brush();
-			//}
+			}
 			break;
 		}
 		case CHECK_PEDAL:
