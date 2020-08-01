@@ -1346,7 +1346,7 @@ void Check_Pedal()
 		if (delay_for_cutting_buttons == TIMEOUT_TO_ACTIVATE_CUTTING_BUTTON) {
 			//Activates cuttings button
 			Cutting_Button_On();
-			Air_Out_On();
+			Air_Out_Off();
 
 			if ((input_state.cut_is_pressed == 1) && (cut_is_done == 0)) {
 				//if passed 3 second
@@ -1388,7 +1388,7 @@ void Check_Pedal()
 			delay_for_cutting_buttons = 0;
 			delay_for_cutting = 0;
 			Cutting_Button_Off();
-			Air_Out_Off();
+			Air_Out_On();
 			Write_LCD_Buffer((char*)"                    ", LCD_ROW_SIZE, ROW_4);
 			Unlock_Handle();
 		}
