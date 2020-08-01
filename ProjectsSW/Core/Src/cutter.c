@@ -1363,6 +1363,10 @@ void Check_Pedal()
 			//memset(coord_array, '0', COORD_SIZE);
 			Unlock_Handle();
 		}
+		if (keypad_timeout == KEYPAD_TIMEOUT) {
+			keypad_timeout = 0;
+			Read_Keypad();
+		}
 		if (!Empty(keypad_buf_length)) {
 			uint8_t data = Read_Keypad_Buffer(keypad_buffer);
 
@@ -1493,10 +1497,6 @@ void state_machine()
 		}
 		case CHECK_PEDAL:
 		{
-			if (keypad_timeout == KEYPAD_TIMEOUT) {
-				keypad_timeout = 0;
-				Read_Keypad();
-			}
 			Check_Pedal();
 			break;
 		}
