@@ -69,7 +69,6 @@ static void Print_Initial_Status();
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-uint8_t encoder_time = 0;
 float real_coord = 0;
 extern int32_t encoder_value;
 extern float set_coord;

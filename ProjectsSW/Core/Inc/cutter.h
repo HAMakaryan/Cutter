@@ -43,16 +43,6 @@
 #define ERROR 	1
 #define SINGLE	2
 
-typedef enum {
-	SELECT,
-	EDIT,
-	CALLIBRATION,
-	BRUSH_MOVE,
-	HAND_CATCH,
-	CHECK_PEDAL,
-	CUTTING
-}system_mode_t;
-
 #define COORD_SIZE				5
 #define COORD_SIZE_WITH_POINT	COORD_SIZE+1
 
@@ -72,17 +62,29 @@ typedef enum {
 #define FORWARD	1
 #define	BACK	2
 #define STOP	3
+
 #define RAMP_UP		20
 #define RAMP_DOWN	20
 
-#define	MAX_DAC_VALUE			4095
-#define DISTANCE_FOR_RAMP_DOWN	8333
-#define SOFT_LIMIT_UP			1055
-#define HARD_LIMIT_UP			1058	//mm
-#define LIMIT_DOWN				95		//mm
-#define DISTANCE_FOR_FORWARD	8333	//100mm
-#define MIN_SPEED				2500
-#define MIN_ENCODER_VALUE		833		//10mm
+#define	MAX_DAC_VALUE				4095
+#define SOFT_LIMIT_UP				1055
+#define HARD_LIMIT_UP				1058	//mm
+#define LIMIT_DOWN					95		//mm
+#define MIN_DISTANCE				8333	//100mm
+#define MIN_SPEED					2500
+#define ENC_VAL_FOR_RAMP_DOWN		833		//10mm
+#define INTERVAL_FOR_RAMP			4000	//4 second
+#define TIME_FOR_CHANGE_RAMP		10
+
+typedef enum {
+	SELECT,
+	EDIT,
+	CALLIBRATION,
+	BRUSH_MOVE,
+	HAND_CATCH,
+	CHECK_PEDAL,
+	CUTTING
+}system_mode_t;
 
 void LCD_Init(uint8_t lcd_addr);
 void LCD_Write(uint8_t lcd_addr);

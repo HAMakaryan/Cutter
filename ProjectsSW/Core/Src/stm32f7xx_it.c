@@ -63,9 +63,13 @@ extern uint8_t keypad_timeout;
 extern uint8_t input_timeout;
 extern uint8_t lcd_timeout;
 extern uint8_t encoder_time;
+extern uint8_t is_move;
 extern uint16_t delay_for_cutting_buttons;
 extern uint16_t delay_for_cutting;
+extern uint16_t timeout_for_ramp;
 extern Input_State input_state;
+
+uint8_t time_for_change_ramp = 0;
 /* USER CODE END EV */
 
 /******************************************************************************/
@@ -203,22 +207,29 @@ void SysTick_Handler(void)
 	  input_timeout++;
   }
 
-  if (encoder_time < 100)
-  {
-	  encoder_time++;
-  }
-
   if (input_state.pedal_is_pressed == 1)
   {
-	  if (delay_for_cutting_buttons < 5000)
+	  if (delay_for_cutting_buttons < TIMEOUT_TO_ACTIVATE_CUTTING_BUTTON)
 	  {
 		  delay_for_cutting_buttons++;
 	  }
 
-	  if (delay_for_cutting < 3000)
+	  if (delay_for_cutting < TIMEOUT_TO_CUT)
 	  {
 		  delay_for_cutting++;
 	  }
+  }
+
+  if (is_move == 1)
+  {
+	 if (timeout_for_ramp < INTERVAL_FOR_RAMP)
+	 {
+		 timeout_for_ramp++;
+	 }
+	 if (time_for_change_ramp < TIME_FOR_CHANGE_RAMP)
+	 {
+		 time_for_change_ramp++;
+	 }
   }
 
   /* USER CODE END SysTick_IRQn 0 */
