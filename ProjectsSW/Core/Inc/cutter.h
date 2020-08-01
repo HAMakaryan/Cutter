@@ -36,6 +36,9 @@
 #define REAL				1
 #define	SET					2
 
+#define TIMEOUT_TO_ACTIVATE_CUTTING_BUTTON 	5000
+#define TIMEOUT_TO_CUT 						3000
+
 #define IDLE	0
 #define ERROR 	1
 #define SINGLE	2

@@ -1311,14 +1311,14 @@ void Check_Pedal()
 		pedal_is_pressed = 1;
 
 		//if passed 5 second
-		if (delay_for_cutting_buttons == 5000) {
+		if (delay_for_cutting_buttons == TIMEOUT_TO_ACTIVATE_CUTTING_BUTTON) {
 			//Activates cuttings button
 			Cutting_Button_On();
 
 			//if cutting buttons is pressed
 			if ((input_state.cut_is_pressed == 1) && (cut_is_done == 0)) {
 				//if passed 3 second
-				if (delay_for_cutting == 3000) {
+				if (delay_for_cutting == TIMEOUT_TO_CUT) {
 					//Reads knife sensors
 					if (Read_Knife_Sensors() == 1) {
 						//Cuts the paper
