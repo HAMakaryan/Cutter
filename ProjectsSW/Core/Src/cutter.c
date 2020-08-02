@@ -80,6 +80,8 @@ uint8_t temp = 0;
 uint8_t old_temp = 0;
 
 uint8_t hand_catch_detected = 0;
+
+uint8_t print_real_coord_time = 0;
 ///////////////////////////////////////////////////////////////////////////////
 //							       LCD									     //
 ///////////////////////////////////////////////////////////////////////////////
@@ -626,12 +628,12 @@ void Read_Keypad()
 ///////////////////////////////////////////////////////////////////////////////
 void Lock_Handle()
 {
-	HAL_GPIO_WritePin(Lock_GPIO_Port, Lock_Pin, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(Lock_GPIO_Port, Lock_Pin, GPIO_PIN_SET);
 }
 
 void Unlock_Handle()
 {
-	HAL_GPIO_WritePin(Lock_GPIO_Port, Lock_Pin, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(Lock_GPIO_Port, Lock_Pin, GPIO_PIN_RESET);
 }
 
 /**
@@ -697,7 +699,7 @@ void Gets_Direction_and_Diff()
 		direction = BACK;
 	}
 
-	if (encoder_diff < MIN_DISTANCE) {
+	if (encoder_diff <= MIN_DISTANCE) {
 		speed = MIN_SPEED;
 		min_speed = 1;
 	} else {
@@ -804,8 +806,10 @@ void Collects_Digits(int8_t coord_name)
 
 					if (set_coord < LIMIT_DOWN) {
 						Write_LCD_Buffer((char*)"Min", 3, 0xCE);
+						coord_size = 3;
 					} else if (set_coord > SOFT_LIMIT_UP) {
 						Write_LCD_Buffer((char*)"Max", 3, 0xCE);
+						coord_size = 5;
 					}
 					Write_LCD_Buffer(coord_array, COORD_SIZE, S_COORD_POS);
 
@@ -987,25 +991,25 @@ void Set_Inverter(uint8_t dir, uint16_t speed)
   * 		To move the brush at the determined speed.
   * @retval None
   */
-void Change_Speed(uint16_t *speed, uint8_t ramp)
+void Change_Speed(uint16_t *sp, uint8_t ramp)
 {
 	if (ramp == RAMP_UP) {
-		if (*speed <= MAX_DAC_VALUE) {
-			*speed = *speed + RAMP_UP;
-			if (*speed > MAX_DAC_VALUE) {
-				*speed = MAX_DAC_VALUE;
+		if (*sp <= MAX_DAC_VALUE) {
+			*sp = *sp + RAMP_UP_VAL;
+			if (*sp > MAX_DAC_VALUE) {
+				*sp = MAX_DAC_VALUE;
 			}
 		}
-	} else {
-		if (*speed >= 0) {
-			*speed = *speed - RAMP_DOWN;
-			if (*speed < 0) {
-				*speed = 0;
-			}
+	} else if (ramp == RAMP_DOWN) {
+		if (*sp >= (400 + RAMP_DOWN_VAL)) {
+			*sp = *sp - RAMP_DOWN_VAL;
+			//if (*speed < 0) {
+			//	*speed = 0;
+			//}
 		}
 	}
 	/* Changes the speed by changing PWM duty cycle or DAC value */
-	HAL_DAC_SetValue(&hdac, DAC_CHANNEL_1, DAC_ALIGN_12B_R, *speed);
+	HAL_DAC_SetValue(&hdac, DAC_CHANNEL_1, DAC_ALIGN_12B_R, *sp);
 }
 
 /**
@@ -1087,8 +1091,18 @@ uint8_t Check_Arrange_Out()
 		real_coord = initial_coord + ((float)(abs(encoder_value)*12)/1000);
 	}
 
+	/*if (print_real_coord_time == TIMEOUT_PRINT_REAL) {
+		print_real_coord_time = 0;
+		Reset_LCD_Pointers();
+		Print_Coord(real_coord, REAL);
+		//if (lcd_timeout == LCD_TIMEOUT) {
+		//	lcd_timeout = 0;
+			LCD_Write(LCD_ADDR);
+		//}
+	}*/
+
 	if ((direction == FORWARD && real_coord >= HARD_LIMIT_UP) || (direction == BACK && real_coord <= LIMIT_DOWN)) {
-		Set_Inverter(STOP, speed);
+		Set_Inverter(STOP, 0);
 		Brush_Lock();
 		return 1;
 	}
@@ -1103,6 +1117,12 @@ uint8_t Check_Arrange_Out()
   */
 void Move_Brush()
 {
+
+	print_real_coord_time = 0;
+	is_move = 0;
+	timeout_for_ramp = 0;
+	time_for_change_ramp = 0;
+
 	if (direction == FORWARD) {
 		while((encoder_diff - abs(encoder_value)) > 0) {
 			if (Check_Arrange_Out() == 1) {
@@ -1142,6 +1162,10 @@ void Move_Brush()
 			timeout_for_ramp = 0;
 			time_for_change_ramp = 0;
 		}
+
+		Set_Inverter(STOP, 0);
+		HAL_Delay(2000);
+
 		if (arrange_out == 0)
 		{
 			while(abs(encoder_value) - encoder_diff > 0) {
@@ -1154,38 +1178,53 @@ void Move_Brush()
 	} else if (direction == BACK) {
 		if (min_speed == 0)
 		{
+			is_move = 1;
 			while(((encoder_diff - ENC_VAL_FOR_RAMP_DOWN) - abs(encoder_value)) > 0) {
 				if (Check_Arrange_Out() == 1) {
 					arrange_out = 1;
 					break;
 				}
-				Change_Speed(&speed, RAMP_UP);
+				if (timeout_for_ramp < INTERVAL_FOR_RAMP && time_for_change_ramp == TIME_FOR_CHANGE_RAMP) {
+					time_for_change_ramp = 0;
+					Change_Speed(&speed, RAMP_UP);
+				}
 				Set_Inverter(BACK, speed);
 			}
+			is_move = 0;
+			timeout_for_ramp = 0;
+			time_for_change_ramp = 0;
+
 			if (arrange_out == 0)
 			{
+				is_move = 1;
 				while((encoder_diff - abs(encoder_value)) > 0) {
 					if (Check_Arrange_Out() == 1) {
 						break;
 					}
-					Change_Speed(&speed, RAMP_DOWN);
+					if (timeout_for_ramp < INTERVAL_FOR_RAMP && time_for_change_ramp == TIME_FOR_CHANGE_RAMP){
+						time_for_change_ramp = 0;
+						Change_Speed(&speed, RAMP_DOWN);
+					}
 					Set_Inverter(BACK, speed);
 				}
 			}
 		} else {
 			while((encoder_diff - abs(encoder_value)) > 0)
 			{
+				if (Check_Arrange_Out() == 1) {
+						break;
+				}
 				Set_Inverter(BACK, speed);
 			}
 		}
 	}
 	arrange_out = 0;
 	Reset_LCD_Pointers();
-	//Turns off inverter
-	Set_Inverter(STOP, speed);
 	HAL_DAC_Stop(&hdac, DAC_CHANNEL_1);
-	//Locks brush to fix it
 	Brush_Lock();
+	//Turns off inverter
+	Set_Inverter(STOP, 0);
+	//Locks brush to fix it
 
 	if (direction == BACK) {
 		real_coord = initial_coord - ((float)(abs(encoder_value)*12)/1000);
@@ -1220,7 +1259,7 @@ void Read_Inputs(void)
 			 &input_state.pedal_cnt_for_st1, &input_state.pedal_is_pressed, 1);
 
 	Read_Pin(Hand_Catch_GPIO_Port, Hand_Catch_Pin, &input_state.hand_catch_cnt_for_st0,
- &input_state.hand_catch_cnt_for_st1,	&input_state.hand_catch_is_pressed, 1);
+ &input_state.hand_catch_cnt_for_st1,	&input_state.hand_catch_is_pressed, 0);
 }
 
 /**
@@ -1328,12 +1367,12 @@ uint8_t Read_Knife_Sensors(void)
 
 void Air_Out_On()
 {
-	HAL_GPIO_WritePin(Air_Out_GPIO_Port, Air_Out_Pin, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(Air_Out_GPIO_Port, Air_Out_Pin, GPIO_PIN_SET);
 }
 
 void Air_Out_Off()
 {
-	HAL_GPIO_WritePin(Air_Out_GPIO_Port, Air_Out_Pin, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(Air_Out_GPIO_Port, Air_Out_Pin, GPIO_PIN_RESET);
 }
 
 void Check_Pedal()
@@ -1341,15 +1380,14 @@ void Check_Pedal()
 	//if pedal is pressed
 	if (input_state.pedal_is_pressed == 1) {
 		Lock_Handle();
+		Air_Out_Off();
 		pedal_is_pressed = 1;
 
 		if (delay_for_cutting_buttons == TIMEOUT_TO_ACTIVATE_CUTTING_BUTTON) {
 			//Activates cuttings button
 			Cutting_Button_On();
-			Air_Out_Off();
 
 			if ((input_state.cut_is_pressed == 1) && (cut_is_done == 0)) {
-				//if passed 3 second
 				if (delay_for_cutting == TIMEOUT_TO_CUT) {
 					//Reads knife sensors
 					if (Read_Knife_Sensors() == 1) {
@@ -1361,8 +1399,6 @@ void Check_Pedal()
 							Write_LCD_Buffer((char*)"      Cutting       ", LCD_ROW_SIZE, ROW_4);
 						}
 					} else {
-						//Deactivates cutting buttons
-						Cutting_Button_Off();
 						Cutting_Off();
 						cut_is_done = 1;
 						temp = 2;
@@ -1373,6 +1409,7 @@ void Check_Pedal()
 					}
 				}
 			} else if ((input_state.cut_is_pressed == 0) && (cut_is_done == 0)) {
+				Cutting_Off();
 				delay_for_cutting = 0;
 				temp = 3;
 				if (old_temp != temp) {

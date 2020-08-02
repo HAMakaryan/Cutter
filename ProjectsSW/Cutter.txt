@@ -1,6 +1,6 @@
 Configuration	Cutter
 STM32CubeMX 	5.6.1
-Date	08/01/2020
+Date	08/02/2020
 MCU	STM32F767ZITx
 
 
@@ -79,9 +79,8 @@ Pin Nb	PINs	FUNCTIONs	LABELs
 54	PF14	GPIO_Input	Pedal_In [Pedal pressing detection pin]
 55	PF15	GPIO_Input	Col0 [Keypad column 0]
 58	PE7	GPIO_Input	Cutting_Buttons [To cut the paper]
-59	PE8	GPIO_Output	Press_Again [To press the paper]
+59	PE8	GPIO_Output	Cutting_Buttons_Allow
 60	PE9	GPIO_Input	Hand_Catch [Hand catch detection pin]
-63	PE10	GPIO_Output	Air_Out
 65	PE12	GPIO_Output	Brush_Forward [Moves the brush forward]
 66	PE13	GPIO_Output	Cutting [On/Off cutting]
 67	PE14	GPIO_Output	Brush_Back [Moves the brush back]
@@ -95,7 +94,7 @@ Pin Nb	PINs	FUNCTIONs	LABELs
 77	PD8	USART3_TX	STLK_RX [STM32F103CBT6_PA3]
 78	PD9	USART3_RX	STLK_TX [STM32F103CBT6_PA2]
 79	PD10	GPIO_Input	Row3 [Keypad row 3]
-80	PD11	GPIO_Output	Cutting_Buttons_Allow
+80	PD11	GPIO_Output	Air_Out
 81	PD12	TIM4_CH1	Encoder_A
 82	PD13	TIM4_CH2	Encoder_B
 85	PD14	GPIO_Input	Knife_Sensor2 [To detect knife's position]
@@ -201,9 +200,8 @@ Pin Nb	PINs	FUNCTIONs	LABELs
 54	PF14	GPIO_Input	Pedal_In [Pedal pressing detection pin]
 55	PF15	GPIO_Input	Col0 [Keypad column 0]
 58	PE7	GPIO_Input	Cutting_Buttons [To cut the paper]
-59	PE8	GPIO_Output	Press_Again [To press the paper]
+59	PE8	GPIO_Output	Cutting_Buttons_Allow
 60	PE9	GPIO_Input	Hand_Catch [Hand catch detection pin]
-63	PE10	GPIO_Output	Air_Out
 65	PE12	GPIO_Output	Brush_Forward [Moves the brush forward]
 66	PE13	GPIO_Output	Cutting [On/Off cutting]
 67	PE14	GPIO_Output	Brush_Back [Moves the brush back]
@@ -217,7 +215,7 @@ Pin Nb	PINs	FUNCTIONs	LABELs
 77	PD8	USART3_TX	STLK_RX [STM32F103CBT6_PA3]
 78	PD9	USART3_RX	STLK_TX [STM32F103CBT6_PA2]
 79	PD10	GPIO_Input	Row3 [Keypad row 3]
-80	PD11	GPIO_Output	Cutting_Buttons_Allow
+80	PD11	GPIO_Output	Air_Out
 81	PD12	TIM4_CH1	Encoder_A
 82	PD13	TIM4_CH2	Encoder_B
 85	PD14	GPIO_Input	Knife_Sensor2 [To detect knife's position]

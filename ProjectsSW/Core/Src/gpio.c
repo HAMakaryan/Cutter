@@ -60,17 +60,14 @@ void MX_GPIO_Init(void)
                           |DB5_Pin|DB1_Pin|DB2_Pin|LD2_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOE, Press_Again_Pin|Brush_Forward_Pin|Cutting_Pin|Brush_Back_Pin 
+  HAL_GPIO_WritePin(GPIOE, Cutting_Buttons_Allow_Pin|Brush_Forward_Pin|Cutting_Pin|Brush_Back_Pin 
                           |Brush_Lock_Pin, GPIO_PIN_SET);
-
-  /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(Air_Out_GPIO_Port, Air_Out_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(Relay_4_GPIO_Port, Relay_4_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(Cutting_Buttons_Allow_GPIO_Port, Cutting_Buttons_Allow_Pin, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(Air_Out_GPIO_Port, Air_Out_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(USB_PowerSwitchOn_GPIO_Port, USB_PowerSwitchOn_Pin, GPIO_PIN_RESET);
@@ -124,9 +121,9 @@ void MX_GPIO_Init(void)
   HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 
   /*Configure GPIO pins : PEPin PEPin PEPin PEPin 
-                           PEPin PEPin */
-  GPIO_InitStruct.Pin = Press_Again_Pin|Air_Out_Pin|Brush_Forward_Pin|Cutting_Pin 
-                          |Brush_Back_Pin|Brush_Lock_Pin;
+                           PEPin */
+  GPIO_InitStruct.Pin = Cutting_Buttons_Allow_Pin|Brush_Forward_Pin|Cutting_Pin|Brush_Back_Pin 
+                          |Brush_Lock_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -139,11 +136,11 @@ void MX_GPIO_Init(void)
   HAL_GPIO_Init(Row3_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : PtPin */
-  GPIO_InitStruct.Pin = Cutting_Buttons_Allow_Pin;
+  GPIO_InitStruct.Pin = Air_Out_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(Cutting_Buttons_Allow_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(Air_Out_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pins : PDPin PDPin */
   GPIO_InitStruct.Pin = Knife_Sensor2_Pin|Knife_Sensor1_Pin;
