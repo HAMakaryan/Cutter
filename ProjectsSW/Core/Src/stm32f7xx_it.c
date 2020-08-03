@@ -70,7 +70,7 @@ extern uint16_t timeout_for_ramp;
 extern Input_State input_state;
 
 uint8_t time_for_change_ramp = 0;
-extern uint8_t print_real_coord_time;
+extern uint16_t print_real_coord_time;
 extern uint8_t mode;
 /* USER CODE END EV */
 

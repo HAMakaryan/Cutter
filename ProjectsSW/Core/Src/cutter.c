@@ -81,7 +81,9 @@ uint8_t old_temp = 0;
 
 uint8_t hand_catch_detected = 0;
 
-uint8_t print_real_coord_time = 0;
+uint16_t print_real_coord_time = 0;
+
+uint8_t is_limited_number = 0;
 ///////////////////////////////////////////////////////////////////////////////
 //							       LCD									     //
 ///////////////////////////////////////////////////////////////////////////////
@@ -745,6 +747,16 @@ void Collects_Digits(int8_t coord_name)
 					} else if (coord_name == SET) {
 						Write_LCD_Buffer(coord_array, COORD_SIZE, S_COORD_POS);
 					}
+
+					if (is_limited_number == 1)
+					{
+						is_limited_number = 0;
+						if (coord_name == REAL) {
+							Write_LCD_Buffer((char*)"   ", 3, 0x8E);
+						} else {
+							Write_LCD_Buffer((char*)"   ", 3, 0xCE);
+						}
+					}
 				}
 			}
 		}
@@ -765,6 +777,15 @@ void Collects_Digits(int8_t coord_name)
 					Write_LCD_Buffer(coord_array, COORD_SIZE, R_COORD_POS);
 				} else if (coord_name == SET) {
 					Write_LCD_Buffer(coord_array, COORD_SIZE, S_COORD_POS);
+				}
+				if (is_limited_number == 1)
+				{
+					is_limited_number = 0;
+					if (coord_name == REAL) {
+						Write_LCD_Buffer((char*)"   ", 3, 0x8E);
+					} else {
+						Write_LCD_Buffer((char*)"   ", 3, 0xCE);
+					}
 				}
 			}
 		} else if (number_accept_count == 1) {
@@ -806,11 +827,12 @@ void Collects_Digits(int8_t coord_name)
 
 					if (set_coord < LIMIT_DOWN) {
 						Write_LCD_Buffer((char*)"Min", 3, 0xCE);
-						coord_size = 3;
 					} else if (set_coord > SOFT_LIMIT_UP) {
 						Write_LCD_Buffer((char*)"Max", 3, 0xCE);
-						coord_size = 5;
 					}
+					is_limited_number = 1;
+					char temp_array[7];
+					coord_size = Get_Coord_Size(temp_array, set_coord);
 					Write_LCD_Buffer(coord_array, COORD_SIZE, S_COORD_POS);
 
 				} else {
@@ -843,6 +865,9 @@ void Collects_Digits(int8_t coord_name)
 					} else if (real_coord > SOFT_LIMIT_UP) {
 						Write_LCD_Buffer((char*)"Max", 3, 0x8E);
 					}
+					is_limited_number = 1;
+					char temp_array[7];
+					coord_size = Get_Coord_Size(temp_array, real_coord);
 					Write_LCD_Buffer(coord_array, COORD_SIZE, R_COORD_POS);
 
 				} else {
@@ -1091,15 +1116,13 @@ uint8_t Check_Arrange_Out()
 		real_coord = initial_coord + ((float)(abs(encoder_value)*12)/1000);
 	}
 
-	/*if (print_real_coord_time == TIMEOUT_PRINT_REAL) {
+	if (print_real_coord_time == TIMEOUT_PRINT_REAL) {
 		print_real_coord_time = 0;
 		Reset_LCD_Pointers();
 		Print_Coord(real_coord, REAL);
-		//if (lcd_timeout == LCD_TIMEOUT) {
-		//	lcd_timeout = 0;
-			LCD_Write(LCD_ADDR);
-		//}
-	}*/
+	}
+
+	lcd_write();
 
 	if ((direction == FORWARD && real_coord >= HARD_LIMIT_UP) || (direction == BACK && real_coord <= LIMIT_DOWN)) {
 		Set_Inverter(STOP, 0);
@@ -1164,7 +1187,6 @@ void Move_Brush()
 		}
 
 		Set_Inverter(STOP, 0);
-		HAL_Delay(2000);
 
 		if (arrange_out == 0)
 		{
@@ -1379,18 +1401,23 @@ void Check_Pedal()
 {
 	//if pedal is pressed
 	if (input_state.pedal_is_pressed == 1) {
+
+		pedal_is_pressed = 1;
 		Lock_Handle();
 		Air_Out_Off();
-		pedal_is_pressed = 1;
 
 		if (delay_for_cutting_buttons == TIMEOUT_TO_ACTIVATE_CUTTING_BUTTON) {
+
 			//Activates cuttings button
 			Cutting_Button_On();
 
 			if ((input_state.cut_is_pressed == 1) && (cut_is_done == 0)) {
+
 				if (delay_for_cutting == TIMEOUT_TO_CUT) {
+
 					//Reads knife sensors
 					if (Read_Knife_Sensors() == 1) {
+
 						//Cuts the paper
 						Cutting_On();
 						temp = 1;
@@ -1398,6 +1425,7 @@ void Check_Pedal()
 							Reset_LCD_Pointers();
 							Write_LCD_Buffer((char*)"      Cutting       ", LCD_ROW_SIZE, ROW_4);
 						}
+
 					} else {
 						Cutting_Off();
 						cut_is_done = 1;
@@ -1414,7 +1442,7 @@ void Check_Pedal()
 				temp = 3;
 				if (old_temp != temp) {
 					Reset_LCD_Pointers();
-					Write_LCD_Buffer((char*)"  Pedal is pressed  ", LCD_ROW_SIZE, ROW_4);
+					Write_LCD_Buffer((char*)"  Allowed cutting   ", LCD_ROW_SIZE, ROW_4);
 				}
 			}
 		}
@@ -1445,6 +1473,9 @@ void Check_Pedal()
 		}
 		if (input_state.hand_catch_is_pressed == 1)
 		{
+			print_real_coord_time = 0;
+			initial_coord = real_coord;
+			encoder_value = 0;
 			Brush_Unlock();
 			Write_LCD_Buffer((char*)"   Hand catching    ", LCD_ROW_SIZE, ROW_4);
 			mode = HAND_CATCH;
@@ -1481,18 +1512,26 @@ void Check_Hand_Catch()
 {
 	if (input_state.hand_catch_is_pressed == 1) {
 		hand_catch_detected = 1;
+
+		if (encoder_value < 0) {
+			real_coord = initial_coord - ((float)(abs(encoder_value)*12)/1000);
+		} else {
+			real_coord = initial_coord + ((float)(abs(encoder_value)*12)/1000);
+		}
+		if (print_real_coord_time == TIMEOUT_PRINT_REAL) {
+			print_real_coord_time = 0;
+			Reset_LCD_Pointers();
+			Print_Coord(real_coord, REAL);
+		}
 	} else {
 		if (hand_catch_detected == 1) {
 			hand_catch_detected = 0;
 			Brush_Lock();
 
-			float temp_value = ((float)abs(encoder_value)*12)/1000;
-
 			if (encoder_value < 0) {
-				real_coord = real_coord - temp_value;
-			} else
-			{
-				real_coord = real_coord + temp_value;
+				real_coord = initial_coord - ((float)(abs(encoder_value)*12)/1000);
+			} else {
+				real_coord = initial_coord + ((float)(abs(encoder_value)*12)/1000);
 			}
 
 			//Prints real coordinate to LCD
@@ -1510,16 +1549,17 @@ void Check_Hand_Catch()
 ///////////////////////////////////////////////////////////////////////////////
 //								Main Task									 //
 ///////////////////////////////////////////////////////////////////////////////
-void Main_Task()
+void lcd_write()
 {
 	if (lcd_timeout == LCD_TIMEOUT) {
 		lcd_timeout = 0;
 		LCD_Write(LCD_ADDR);
 	}
-	if (input_timeout == INPUT_TIMEOUT) {
-		input_timeout = 0;
-		Read_Inputs();
-	}
+}
+
+void Main_Task()
+{
+	lcd_write();
 	state_machine();
 }
 
@@ -1566,11 +1606,19 @@ void state_machine()
 		}
 		case CHECK_PEDAL:
 		{
+			if (input_timeout == INPUT_TIMEOUT) {
+				input_timeout = 0;
+				Read_Inputs();
+			}
 			Check_Pedal();
 			break;
 		}
 		case HAND_CATCH:
 		{
+			if (input_timeout == INPUT_TIMEOUT) {
+				input_timeout = 0;
+				Read_Inputs();
+			}
 			Check_Hand_Catch();
 			break;
 		}
