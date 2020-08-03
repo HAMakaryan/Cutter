@@ -70,12 +70,12 @@
 #define RAMP_DOWN_VAL	20
 
 #define	MAX_DAC_VALUE				4095
-#define SOFT_LIMIT_UP				1045
+#define SOFT_LIMIT_UP				1050
 #define HARD_LIMIT_UP				1056	//mm
 #define LIMIT_DOWN					95		//mm
-#define MIN_DISTANCE				8333	//100mm
+#define MIN_DISTANCE				8333.3	//100mm
 #define MIN_SPEED					400
-#define ENC_VAL_FOR_RAMP_DOWN		833		//10mm
+#define ENC_VAL_FOR_RAMP_DOWN		416.7		//5mm
 #define INTERVAL_FOR_RAMP			4000	//4 second
 #define TIME_FOR_CHANGE_RAMP		10
 

@@ -56,7 +56,7 @@ uint8_t mode 				= SELECT;
 uint8_t direction 			= 0;
 uint8_t min_speed			= 0;
 char coord_array[COORD_SIZE];
-uint32_t encoder_diff 		= 0;
+float encoder_diff 		= 0;
 float set_coord 			= 0;
 float initial_coord			= 0;
 float coord_diff 			= 0;
@@ -691,8 +691,9 @@ void Gets_Direction_and_Diff()
 {
 	//Gets difference between real and set coordinates
 	coord_diff = real_coord - set_coord;
+	float _round = fabs(coord_diff);
 	//Calculates encoder value for coordinate difference
-	encoder_diff = ((float)abs(round(coord_diff)*1000))/12; //1000 value - 12mm
+	encoder_diff = (float)(_round*1000)/12; //1000 value - 12mm
 	initial_coord = real_coord;
 	//Defines direction
 	if (coord_diff < 0) {
@@ -1147,7 +1148,7 @@ void Move_Brush()
 	time_for_change_ramp = 0;
 
 	if (direction == FORWARD) {
-		while((encoder_diff - abs(encoder_value)) > 0) {
+		while((float)(encoder_diff - abs(encoder_value)) > 0) {
 			if (Check_Arrange_Out() == 1) {
 				arrange_out = 1;
 				break;
@@ -1167,7 +1168,7 @@ void Move_Brush()
 
 		if (arrange_out == 0)
 		{
-			while(((encoder_diff + ENC_VAL_FOR_RAMP_DOWN) - abs(encoder_value)) > 0) {
+			while(((float)(encoder_diff + ENC_VAL_FOR_RAMP_DOWN) - abs(encoder_value)) > 0) {
 				if (Check_Arrange_Out() == 1) {
 					arrange_out = 1;
 					break;
@@ -1190,7 +1191,7 @@ void Move_Brush()
 
 		if (arrange_out == 0)
 		{
-			while(abs(encoder_value) - encoder_diff > 0) {
+			while((float)(abs(encoder_value) - encoder_diff) > 0) {
 				if (Check_Arrange_Out() == 1) {
 					break;
 				}
@@ -1201,7 +1202,7 @@ void Move_Brush()
 		if (min_speed == 0)
 		{
 			is_move = 1;
-			while(((encoder_diff - ENC_VAL_FOR_RAMP_DOWN) - abs(encoder_value)) > 0) {
+			while((float)((encoder_diff - ENC_VAL_FOR_RAMP_DOWN) - abs(encoder_value)) > 0) {
 				if (Check_Arrange_Out() == 1) {
 					arrange_out = 1;
 					break;
@@ -1219,7 +1220,7 @@ void Move_Brush()
 			if (arrange_out == 0)
 			{
 				is_move = 1;
-				while((encoder_diff - abs(encoder_value)) > 0) {
+				while((float)(encoder_diff - abs(encoder_value)) > 0) {
 					if (Check_Arrange_Out() == 1) {
 						break;
 					}
@@ -1231,7 +1232,7 @@ void Move_Brush()
 				}
 			}
 		} else {
-			while((encoder_diff - abs(encoder_value)) > 0)
+			while((float)(encoder_diff - abs(encoder_value)) > 0)
 			{
 				if (Check_Arrange_Out() == 1) {
 						break;
