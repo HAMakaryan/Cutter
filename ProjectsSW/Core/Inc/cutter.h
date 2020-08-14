@@ -63,6 +63,8 @@
 #define	BACK	2
 #define STOP	3
 
+#define ONE_ROTATION_VAL 11.8 //mm
+
 #define RAMP_UP		1
 #define RAMP_DOWN	2
 
