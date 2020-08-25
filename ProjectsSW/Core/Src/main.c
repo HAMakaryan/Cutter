@@ -69,9 +69,9 @@ static void Print_Initial_Status();
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-float real_coord = 0;
+double real_coord = 0;
 extern int32_t encoder_value;
-extern float set_coord;
+extern double set_coord;
 extern uint8_t keypad_timeout;
 /* USER CODE END 0 */
 
@@ -79,6 +79,8 @@ extern uint8_t keypad_timeout;
   * @brief  The application entry point.
   * @retval int
   */
+uint32_t _temp = 0;
+
 int main(void)
 {
   /* USER CODE BEGIN 1 */
@@ -129,6 +131,8 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+
+  //_temp = roundf(5.8);
 
   while (1)
   {
@@ -210,7 +214,7 @@ void SystemClock_Config(void)
 static void Read_Real_Coord()
 {
 	//Save_Coord(0);
-	real_coord = (float)Read_Coord()/1000;
+	real_coord = (double)Read_Coord()/1000;
 	set_coord = real_coord;
 }
 

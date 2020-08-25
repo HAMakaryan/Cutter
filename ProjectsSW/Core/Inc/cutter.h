@@ -36,8 +36,8 @@
 #define REAL				1
 #define	SET					2
 
-#define TIMEOUT_TO_ACTIVATE_CUTTING_BUTTON 	5000
-#define TIMEOUT_TO_CUT 						3000
+#define TIMEOUT_TO_ACTIVATE_CUTTING_BUTTON 	4000 // /5000 er
+#define TIMEOUT_TO_CUT 						1000 // /3000 er
 
 #define IDLE	0
 #define ERROR 	1
@@ -69,14 +69,16 @@
 #define RAMP_UP_VAL		20
 #define RAMP_DOWN_VAL	20
 
-#define	MAX_DAC_VALUE				4095
+#define	ONE_ROTATION_VAL	(double)11.962
+
+#define	MAX_DAC_VALUE				2200  // /4095
 #define SOFT_LIMIT_UP				1050
 #define HARD_LIMIT_UP				1056	//mm
 #define LIMIT_DOWN					95		//mm
-#define MIN_DISTANCE				8333.3	//100mm
-#define MIN_SPEED					400
-#define ENC_VAL_FOR_RAMP_DOWN		416.7		//5mm
-#define INTERVAL_FOR_RAMP			4000	//4 second
+#define MIN_DISTANCE				(double)8333.3	//100mm
+#define MIN_SPEED					1500     // / 400 er
+#define ENC_VAL_FOR_RAMP_DOWN		1500		//5mm // / 416.7 er
+#define INTERVAL_FOR_RAMP			3000	//3 second
 #define TIME_FOR_CHANGE_RAMP		10
 
 #define TIMEOUT_PRINT_REAL			1000
@@ -95,7 +97,7 @@ void LCD_Init(uint8_t lcd_addr);
 void LCD_Write(uint8_t lcd_addr);
 void Collect_Digits(void);
 void Keypad_Init(void);
-void Save_Coord(float coord);
+void Save_Coord(double coord);
 void Set_Inverter(uint8_t dir, uint16_t speed);
 void Change_Speed(uint16_t* speed, uint8_t ramp);
 void Brush_Unlock(void);
@@ -111,18 +113,18 @@ void LCD_SendString(uint8_t lcd_addr, char *str);
 void Read_Pin(GPIO_TypeDef* GPIOx, uint16_t GPIO_Pin, uint8_t * st0_counter,
 					uint8_t * st1_counter, uint8_t * is_pressed, uint8_t on_state);
 void Read_Inputs(void);
-void Print_Coord(float r_coord, uint8_t coord_name);
+void Print_Coord(double r_coord, uint8_t coord_name);
 void state_machine(void);
 void Main_Task(void);
 
 char Convert_Key_to_Char(uint8_t key);
-uint8_t Get_Coord_Size(char* coord_arr, float coord);
+uint8_t Get_Coord_Size(char* coord_arr, double coord);
 uint8_t Read_Pedal(void);
 uint8_t Read_Knife_Sensors(void);
 uint8_t Read_Hand_Catch_Input(void);
 uint16_t Read_Encoder(void);
 uint32_t Read_Coord(void);
-float Create_Number(char* buf);
+double Create_Number(char* buf);
 
 typedef struct
 {

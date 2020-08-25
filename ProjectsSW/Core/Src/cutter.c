@@ -56,12 +56,12 @@ uint8_t mode 				= SELECT;
 uint8_t direction 			= 0;
 uint8_t min_speed			= 0;
 char coord_array[COORD_SIZE];
-float encoder_diff 		= 0;
-float set_coord 			= 0;
-float initial_coord			= 0;
-float coord_diff 			= 0;
+double encoder_diff 		= 0;
+double set_coord 			= 0;
+double initial_coord			= 0;
+double coord_diff 			= 0;
 int32_t encoder_value 		= 0;
-extern float real_coord;
+extern double real_coord;
 
 uint16_t speed = MIN_SPEED;
 
@@ -158,7 +158,7 @@ void LCD_Init(uint8_t lcd_addr)
 	* Display on/off
 	* Clear Display
 	  */
-	HAL_Delay(50);
+	HAL_Delay(150); // / 50 er
 	LCD_SendCommand(lcd_addr, 0x30);
 	HAL_Delay(5);
 	LCD_SendCommand(lcd_addr, 0x30);
@@ -630,12 +630,12 @@ void Read_Keypad()
 ///////////////////////////////////////////////////////////////////////////////
 void Lock_Handle()
 {
-	HAL_GPIO_WritePin(Lock_GPIO_Port, Lock_Pin, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(Lock_GPIO_Port, Lock_Pin, GPIO_PIN_RESET);// set er darav reset
 }
 
 void Unlock_Handle()
 {
-	HAL_GPIO_WritePin(Lock_GPIO_Port, Lock_Pin, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(Lock_GPIO_Port, Lock_Pin, GPIO_PIN_SET); // reset er darav set
 }
 
 /**
@@ -673,9 +673,9 @@ void Write_LCD_Buffer(char* buf, uint8_t size, uint8_t cursor)
   * @param	Buffer with digits
   * @retval Set coordinate
   */
-float Create_Number(char* buf)
+double Create_Number(char* buf)
 {
-	float coord = ((buf[0]-'0')*1000) + ((buf[1]-'0')*100) + ((buf[2]-'0')*10)
+	double coord = ((buf[0]-'0')*1000) + ((buf[1]-'0')*100) + ((buf[2]-'0')*10)
 			+ (buf[3]-'0') + ((buf[4]-'0')*0.1);
 
 	return coord;
@@ -691,9 +691,9 @@ void Gets_Direction_and_Diff()
 {
 	//Gets difference between real and set coordinates
 	coord_diff = real_coord - set_coord;
-	float _round = fabs(coord_diff);
+	double _round = fabs(coord_diff);
 	//Calculates encoder value for coordinate difference
-	encoder_diff = (float)(_round*1000)/12; //1000 value - 12mm
+	encoder_diff = roundf((double)(_round*1000)/ONE_ROTATION_VAL); //1000 value - 12mm
 	initial_coord = real_coord;
 	//Defines direction
 	if (coord_diff < 0) {
@@ -811,9 +811,9 @@ void Collects_Digits(int8_t coord_name)
 					number_accept_count = 0;
 					char temp_buf[10];
 					if (set_coord < LIMIT_DOWN) {
-						sprintf(temp_buf, "%6.1f", (float)LIMIT_DOWN);
+						sprintf(temp_buf, "%6.1f", (double)LIMIT_DOWN);
 					} else if (set_coord > SOFT_LIMIT_UP) {
-						sprintf(temp_buf, "%6.1f", (float)SOFT_LIMIT_UP);
+						sprintf(temp_buf, "%6.1f", (double)SOFT_LIMIT_UP);
 					}
 					for (int i = 0; i < sizeof(temp_buf); ++i) {
 					  if (temp_buf[i] == 0x20) {
@@ -846,9 +846,9 @@ void Collects_Digits(int8_t coord_name)
 					number_accept_count = 0;
 					char temp_buf[10];
 					if (real_coord < LIMIT_DOWN) {
-						sprintf(temp_buf, "%6.1f", (float)LIMIT_DOWN);
+						sprintf(temp_buf, "%6.1f", (double)LIMIT_DOWN);
 					} else if (real_coord > SOFT_LIMIT_UP) {
-						sprintf(temp_buf, "%6.1f", (float)SOFT_LIMIT_UP);
+						sprintf(temp_buf, "%6.1f", (double)SOFT_LIMIT_UP);
 					}
 					for (int i = 0; i < sizeof(temp_buf); ++i) {
 					  if (temp_buf[i] == 0x20) {
@@ -913,7 +913,7 @@ void Collects_Digits(int8_t coord_name)
 	}
 }
 
-uint8_t Get_Coord_Size(char* coord_arr, float coord)
+uint8_t Get_Coord_Size(char* coord_arr, double coord)
 {
 	char temp_buf[10];
 	sprintf(temp_buf, "%6.1f", coord);
@@ -998,8 +998,9 @@ void Check_Pressed_Key()
 void Set_Inverter(uint8_t dir, uint16_t speed)
 {
 	if (dir == FORWARD) {
-		HAL_GPIO_WritePin(Brush_Forward_GPIO_Port, Brush_Forward_Pin, GPIO_PIN_RESET);
 		HAL_GPIO_WritePin(Brush_Back_GPIO_Port,	Brush_Back_Pin, GPIO_PIN_SET);
+		HAL_GPIO_WritePin(Brush_Forward_GPIO_Port, Brush_Forward_Pin, GPIO_PIN_RESET);
+		// /HAL_GPIO_WritePin(Brush_Back_GPIO_Port,	Brush_Back_Pin, GPIO_PIN_SET);
 	} else if (dir == BACK) {
 		HAL_GPIO_WritePin(Brush_Forward_GPIO_Port, Brush_Forward_Pin, GPIO_PIN_SET);
 		HAL_GPIO_WritePin(Brush_Back_GPIO_Port, Brush_Back_Pin, GPIO_PIN_RESET);
@@ -1027,7 +1028,7 @@ void Change_Speed(uint16_t *sp, uint8_t ramp)
 			}
 		}
 	} else if (ramp == RAMP_DOWN) {
-		if (*sp >= (400 + RAMP_DOWN_VAL)) {
+		if (*sp >= (1600 + RAMP_DOWN_VAL)) {   // /400 er
 			*sp = *sp - RAMP_DOWN_VAL;
 			//if (*speed < 0) {
 			//	*speed = 0;
@@ -1045,7 +1046,7 @@ void Change_Speed(uint16_t *sp, uint8_t ramp)
   */
 void Brush_Unlock()
 {
-	 HAL_GPIO_WritePin(Brush_Lock_GPIO_Port, Brush_Lock_Pin, GPIO_PIN_RESET);
+	 HAL_GPIO_WritePin(Brush_Lock_GPIO_Port, Brush_Lock_Pin, GPIO_PIN_RESET); // /tormuz
 }
 
 /**
@@ -1064,14 +1065,14 @@ void Brush_Lock()
   * @param	The value to be saved
   * @retval None
   */
-void Save_Coord(float coord)
+void Save_Coord(double coord)
 {
 	/* To write to the Backup register user needs to
 	 * Unlock the Backup register to access it
 	 * Write value to the Backup Register
 	 * Lock the backup register
 	 */
-	float f_coord = coord * 1000;
+	double f_coord = coord * 1000;
 	uint32_t r_coord = f_coord;
 
 	/*set the DBP bit the Power Control
@@ -1112,9 +1113,9 @@ uint32_t Read_Coord()
 uint8_t Check_Arrange_Out()
 {
 	if (direction == BACK) {
-		real_coord = initial_coord - ((float)(abs(encoder_value)*12)/1000);
+		real_coord = initial_coord - ((double)(abs(encoder_value)*ONE_ROTATION_VAL)/1000);
 	} else {
-		real_coord = initial_coord + ((float)(abs(encoder_value)*12)/1000);
+		real_coord = initial_coord + ((double)(abs(encoder_value)*ONE_ROTATION_VAL)/1000);
 	}
 
 	if (print_real_coord_time == TIMEOUT_PRINT_REAL) {
@@ -1139,6 +1140,10 @@ uint8_t Check_Arrange_Out()
   * @param	None
   * @retval None
   */
+int32_t encoder1 = 0;
+int32_t encoder2 = 0;
+int32_t encoder3 = 0;
+
 void Move_Brush()
 {
 
@@ -1148,7 +1153,7 @@ void Move_Brush()
 	time_for_change_ramp = 0;
 
 	if (direction == FORWARD) {
-		while((float)(encoder_diff - abs(encoder_value)) > 0) {
+		while((double)((encoder_diff - ENC_VAL_FOR_RAMP_DOWN) - abs(encoder_value)) > 0) {
 			if (Check_Arrange_Out() == 1) {
 				arrange_out = 1;
 				break;
@@ -1168,7 +1173,7 @@ void Move_Brush()
 
 		if (arrange_out == 0)
 		{
-			while(((float)(encoder_diff + ENC_VAL_FOR_RAMP_DOWN) - abs(encoder_value)) > 0) {
+			while(((double)encoder_diff - abs(encoder_value)) > 0) {
 				if (Check_Arrange_Out() == 1) {
 					arrange_out = 1;
 					break;
@@ -1187,22 +1192,22 @@ void Move_Brush()
 			time_for_change_ramp = 0;
 		}
 
-		Set_Inverter(STOP, 0);
+		/*Set_Inverter(STOP, 0);
 
 		if (arrange_out == 0)
 		{
-			while((float)(abs(encoder_value) - encoder_diff) > 0) {
+			while((double)(abs(encoder_value) - encoder_diff) > 0) {
 				if (Check_Arrange_Out() == 1) {
 					break;
 				}
 				Set_Inverter(BACK, speed);
 			}
-		}
+		}*/
 	} else if (direction == BACK) {
 		if (min_speed == 0)
 		{
 			is_move = 1;
-			while((float)((encoder_diff - ENC_VAL_FOR_RAMP_DOWN) - abs(encoder_value)) > 0) {
+			while((double)((encoder_diff - ENC_VAL_FOR_RAMP_DOWN) - abs(encoder_value)) > 0) {
 				if (Check_Arrange_Out() == 1) {
 					arrange_out = 1;
 					break;
@@ -1220,7 +1225,7 @@ void Move_Brush()
 			if (arrange_out == 0)
 			{
 				is_move = 1;
-				while((float)(encoder_diff - abs(encoder_value)) > 0) {
+				while((double)(encoder_diff - abs(encoder_value)) > 0) {
 					if (Check_Arrange_Out() == 1) {
 						break;
 					}
@@ -1232,7 +1237,7 @@ void Move_Brush()
 				}
 			}
 		} else {
-			while((float)(encoder_diff - abs(encoder_value)) > 0)
+			while((double)(encoder_diff - abs(encoder_value)) > 0)
 			{
 				if (Check_Arrange_Out() == 1) {
 						break;
@@ -1243,16 +1248,20 @@ void Move_Brush()
 	}
 	arrange_out = 0;
 	Reset_LCD_Pointers();
-	HAL_DAC_Stop(&hdac, DAC_CHANNEL_1);
-	Brush_Lock();
-	//Turns off inverter
 	Set_Inverter(STOP, 0);
+	encoder1 = encoder_value;
+	HAL_DAC_Stop(&hdac, DAC_CHANNEL_1);
+	encoder2 = encoder_value;
+	Brush_Lock();
+	encoder3 = encoder_value;
+	//Turns off inverter
+
 	//Locks brush to fix it
 
 	if (direction == BACK) {
-		real_coord = initial_coord - ((float)(abs(encoder_value)*12)/1000);
+		real_coord = initial_coord - ((double)(abs(encoder_value)*ONE_ROTATION_VAL)/1000);
 	} else {
-		real_coord = initial_coord + ((float)(abs(encoder_value)*12)/1000);
+		real_coord = initial_coord + ((double)(abs(encoder_value)*ONE_ROTATION_VAL)/1000);
 	}
 	//Saves real coordinate to backup register
 	Save_Coord(real_coord);
@@ -1279,7 +1288,7 @@ void Read_Inputs(void)
 				 &input_state.cut_cnt_for_st1, &input_state.cut_is_pressed, 0);
 
 	Read_Pin(Pedal_In_GPIO_Port, Pedal_In_Pin, &input_state.pedal_cnt_for_st0,
-			 &input_state.pedal_cnt_for_st1, &input_state.pedal_is_pressed, 1);
+			 &input_state.pedal_cnt_for_st1, &input_state.pedal_is_pressed, 0);// 1 er darav 0
 
 	Read_Pin(Hand_Catch_GPIO_Port, Hand_Catch_Pin, &input_state.hand_catch_cnt_for_st0,
  &input_state.hand_catch_cnt_for_st1,	&input_state.hand_catch_is_pressed, 0);
@@ -1381,8 +1390,8 @@ void Cutting_Off(void)
   */
 uint8_t Read_Knife_Sensors(void)
 {
-	if (HAL_GPIO_ReadPin(Knife_Sensor1_GPIO_Port, Knife_Sensor1_Pin) == 1) {
-		/* Read the knife sensors pins Knife_Sensor1, Knife_Sensor2*/
+	if (HAL_GPIO_ReadPin(Knife_Sensor1_GPIO_Port, Knife_Sensor1_Pin) == 0) { // / 1 er darav 0
+		/* Read the knife sensors pins Knife_Sensor1, Knife_Sensor2  */
 		return 1;
 	}
 	return 0;
@@ -1390,12 +1399,12 @@ uint8_t Read_Knife_Sensors(void)
 
 void Air_Out_On()
 {
-	HAL_GPIO_WritePin(Air_Out_GPIO_Port, Air_Out_Pin, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(Air_Out_GPIO_Port, Air_Out_Pin, GPIO_PIN_RESET); // / set er darav reset
 }
 
 void Air_Out_Off()
 {
-	HAL_GPIO_WritePin(Air_Out_GPIO_Port, Air_Out_Pin, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(Air_Out_GPIO_Port, Air_Out_Pin, GPIO_PIN_SET); // / reset er darav set
 }
 
 void Check_Pedal()
@@ -1489,7 +1498,7 @@ void Check_Pedal()
 ///////////////////////////////////////////////////////////////////////////////
 //							HAND CATCH										 //
 ///////////////////////////////////////////////////////////////////////////////
-void Print_Coord(float r_coord, uint8_t coord_name)
+void Print_Coord(double r_coord, uint8_t coord_name)
 {
 	char temp_buf[10];
 	sprintf(temp_buf, "%6.1f", r_coord);
@@ -1515,9 +1524,9 @@ void Check_Hand_Catch()
 		hand_catch_detected = 1;
 
 		if (encoder_value < 0) {
-			real_coord = initial_coord - ((float)(abs(encoder_value)*12)/1000);
+			real_coord = initial_coord - ((double)(abs(encoder_value)*ONE_ROTATION_VAL)/1000);
 		} else {
-			real_coord = initial_coord + ((float)(abs(encoder_value)*12)/1000);
+			real_coord = initial_coord + ((double)(abs(encoder_value)*ONE_ROTATION_VAL)/1000);
 		}
 		if (print_real_coord_time == TIMEOUT_PRINT_REAL) {
 			print_real_coord_time = 0;
@@ -1530,9 +1539,9 @@ void Check_Hand_Catch()
 			Brush_Lock();
 
 			if (encoder_value < 0) {
-				real_coord = initial_coord - ((float)(abs(encoder_value)*12)/1000);
+				real_coord = initial_coord - ((double)(abs(encoder_value)*ONE_ROTATION_VAL)/1000);
 			} else {
-				real_coord = initial_coord + ((float)(abs(encoder_value)*12)/1000);
+				real_coord = initial_coord + ((double)(abs(encoder_value)*ONE_ROTATION_VAL)/1000);
 			}
 
 			//Prints real coordinate to LCD
