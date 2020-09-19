@@ -10,6 +10,8 @@
 
 #include "stm32f7xx_hal.h"
 
+//#define TEST
+
 #define LCD_ROW_SIZE	20 //20x4
 #define LCD_BUF_SIZE	64
 #define LCD_ADDR		(0x27 << 1)
@@ -71,17 +73,23 @@
 
 #define	ONE_ROTATION_VAL	(double)11.962
 
-#define	MAX_DAC_VALUE				2200  // /4095
-#define SOFT_LIMIT_UP				1050
+#define	MAX_DAC_VALUE				2200
+#define MIN_SPEED					1500
+
+#define SOFT_LIMIT_UP				1050	//mm
 #define HARD_LIMIT_UP				1056	//mm
 #define LIMIT_DOWN					95		//mm
-#define MIN_DISTANCE				(double)8333.3	//100mm
-#define MIN_SPEED					1500     // / 400 er
-#define ENC_VAL_FOR_RAMP_DOWN		1500		//5mm // / 416.7 er
-#define INTERVAL_FOR_RAMP			3000	//3 second
+
+#define MIN_DISTANCE				(100*1000/ONE_ROTATION_VAL)
+
+#define ENC_VAL_FOR_RAMP_DOWN		1500
+#define INTERVAL_FOR_RAMP			3000	//3second
 #define TIME_FOR_CHANGE_RAMP		10
 
 #define TIMEOUT_PRINT_REAL			2000
+
+#define HARD_LIMIT_UP_IN_TICK			(1056*1000/ONE_ROTATION_VAL)
+#define LIMIT_DOWN_IN_TICK				(95*1000/ONE_ROTATION_VAL)
 
 typedef enum {
 	SELECT,
@@ -97,7 +105,7 @@ void LCD_Init(uint8_t lcd_addr);
 void LCD_Write(uint8_t lcd_addr);
 void Collect_Digits(void);
 void Keypad_Init(void);
-void Save_Coord(double coord);
+void Save_Coord(uint32_t coord);
 void Set_Inverter(uint8_t dir, uint16_t speed);
 void Change_Speed(uint16_t* speed, uint8_t ramp);
 void Brush_Unlock(void);
