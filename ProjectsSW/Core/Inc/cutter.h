@@ -81,7 +81,7 @@
 #define INTERVAL_FOR_RAMP			3000	//3 second
 #define TIME_FOR_CHANGE_RAMP		10
 
-#define TIMEOUT_PRINT_REAL			1000
+#define TIMEOUT_PRINT_REAL			2000
 
 typedef enum {
 	SELECT,
