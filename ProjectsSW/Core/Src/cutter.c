@@ -691,7 +691,9 @@ uint32_t set_tick = 0;
 
 uint8_t Get_Direction_and_Diff()
 {
-	set_tick = (float)set_coord * 1000 / ONE_ROTATION_VAL;
+	set_tick = (double)set_coord * ONE_ROTATION_TICK / ONE_ROTATION_VAL;
+
+	//set_tick = set_tick + 30;
 
 	if ((encoder_value >= HARD_LIMIT_UP_IN_TICK) || (encoder_value <= LIMIT_DOWN_IN_TICK)) {
 		return 1;
@@ -706,18 +708,18 @@ uint8_t Get_Direction_and_Diff()
 		return 1;
 	}
 
-	if (abs(set_tick - encoder_value) < 5)
+	int32_t tick_diff = encoder_value - set_tick;
+
+	if (abs(tick_diff) < 5)
 	{
 		return 1;
 	}
-
-	int32_t tick_diff = encoder_value - set_tick;
 
 	/*//Gets difference between real and set coordinates
 	coord_diff = real_coord - set_coord;
 	double _round = fabs(coord_diff);
 	//Calculates encoder value for coordinate difference
-	encoder_diff = roundf((double)(_round*1000)/ONE_ROTATION_VAL); //1000 value - 12mm
+	encoder_diff = roundf((double)(_round*ONE_ROTATION_TICK)/ONE_ROTATION_VAL); //1000 value - 12mm
 	initial_coord = real_coord;*/
 
 	//Defines direction
@@ -727,7 +729,7 @@ uint8_t Get_Direction_and_Diff()
 		direction = BACK;
 	}
 
-	if (tick_diff <= MIN_DISTANCE) {
+	if (abs(tick_diff) < MIN_DISTANCE_IN_TICK) {
 		speed = MIN_SPEED;
 		is_min_speed = 1;
 	} else {
@@ -737,6 +739,9 @@ uint8_t Get_Direction_and_Diff()
 	return 0;
 }
 
+uint8_t debug = 0;
+uint8_t pressed_count = 0;
+
 void Collects_Digits(int8_t coord_name)
 {
 	char data = 0;
@@ -745,8 +750,19 @@ void Collects_Digits(int8_t coord_name)
 		data = Read_Keypad_Buffer(keypad_buffer);
 	}
 
+	if (data == 'B')
+	{
+		if  (pressed_count == 0)
+		{
+			Write_LCD_Buffer((char*)"                    ", LCD_ROW_SIZE, ROW_3);
+			Write_LCD_Buffer((char*) " *-Edit #-Cut C-Cal ", LCD_ROW_SIZE, ROW_4);
+			mode = SELECT;
+		}
+	}
+
 	//if gets number
 	if (data >= '0' && data <= '9') {
+		pressed_count++;
 		if (number_accept_count == 0) {
 			uint8_t all_zero = 0;
 			if (data == '0') {
@@ -790,6 +806,7 @@ void Collects_Digits(int8_t coord_name)
 
 	//if gets * to delete digit
 	} else if (data == '*') {
+		pressed_count++;
 		if (number_accept_count == 0) {
 			if (coord_size > 0) {
 				coord_size--;
@@ -827,6 +844,7 @@ void Collects_Digits(int8_t coord_name)
 	}
 
 	if (data == '#') {
+		pressed_count++;
 		number_accept_count++;
 		if (number_accept_count == 1) {
 			Reset_LCD_Pointers();
@@ -854,8 +872,10 @@ void Collects_Digits(int8_t coord_name)
 
 					if (set_coord < LIMIT_DOWN) {
 						Write_LCD_Buffer((char*)"Min", 3, 0xCE);
+						set_coord = LIMIT_DOWN;
 					} else if (set_coord > SOFT_LIMIT_UP) {
 						Write_LCD_Buffer((char*)"Max", 3, 0xCE);
+						set_coord = SOFT_LIMIT_UP;
 					}
 					is_limited_number = 1;
 					char temp_array[7];
@@ -889,8 +909,10 @@ void Collects_Digits(int8_t coord_name)
 
 					if (real_coord < LIMIT_DOWN) {
 						Write_LCD_Buffer((char*)"Min", 3, 0x8E);
+						real_coord = LIMIT_DOWN;
 					} else if (real_coord > SOFT_LIMIT_UP) {
 						Write_LCD_Buffer((char*)"Max", 3, 0x8E);
+						real_coord = SOFT_LIMIT_UP;
 					}
 					is_limited_number = 1;
 					char temp_array[7];
@@ -912,7 +934,7 @@ void Collects_Digits(int8_t coord_name)
 				Print_Coord(set_coord, SET);
 				Write_LCD_Buffer((char*)"                    ", LCD_ROW_SIZE, ROW_3);
 				Write_LCD_Buffer((char*) " *-Edit #-Cut C-Cal ", LCD_ROW_SIZE, ROW_4);
-				encoder_value = (float)real_coord * ONE_ROTATION_VAL / 1000;
+				encoder_value = (double)real_coord * ONE_ROTATION_TICK / ONE_ROTATION_VAL;
 				Save_Coord(encoder_value);
 				//Goes to Select Mode
 				mode = SELECT;
@@ -973,6 +995,8 @@ uint8_t Get_Coord_Size(char* coord_arr, double coord)
   * @param	None
   * @retval None
   */
+//uint8_t debug = 0;
+
 void Check_Pressed_Key()
 {
 	char data = 0;
@@ -987,6 +1011,7 @@ void Check_Pressed_Key()
 			memset(coord_array, '0', COORD_SIZE);
 			set_coord = 0;
 			coord_size = 0;
+			//coord_size = Get_Coord_Size(coord_array, set_coord);
 			number_accept_count = 0;
 			//Goes to edit mode
 			mode = EDIT;
@@ -1056,7 +1081,7 @@ void Change_Speed(uint16_t *sp, uint8_t ramp)
 			}
 		}
 	} else if (ramp == RAMP_DOWN) {
-		if (*sp >= (1600 + RAMP_DOWN_VAL)) {   // /400 er
+		if (*sp >= (MIN_SPEED + RAMP_DOWN_VAL)) {
 			*sp = *sp - RAMP_DOWN_VAL;
 			//if (*speed < 0) {
 			//	*speed = 0;
@@ -1100,7 +1125,7 @@ void Save_Coord(uint32_t coord)
 	 * Write value to the Backup Register
 	 * Lock the backup register
 	 */
-	//double f_coord = coord * 1000;
+	//double f_coord = coord * ONE_ROTATION_TICK;
 	//uint32_t r_coord = f_coord;
 
 	/*set the DBP bit the Power Control
@@ -1120,9 +1145,9 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 {
 	if (htim->Instance == TIM4) {
 		 if (__HAL_TIM_IS_TIM_COUNTING_DOWN(&htim4)) {
-			 encoder_value++;
-		 } else {
 			 encoder_value--;
+		 } else {
+			 encoder_value++;
 		 }
 	}
 }
@@ -1142,24 +1167,19 @@ uint32_t Read_Coord()
 	return data;
 }
 
-uint8_t Check_Arrange_Out()
+void Print_Current_Coord()
 {
-	real_coord = (float)encoder_value * ONE_ROTATION_VAL / 1000;
-
 	if (print_real_coord_time == TIMEOUT_PRINT_REAL) {
 		print_real_coord_time = 0;
+		real_coord = (double)encoder_value * ONE_ROTATION_VAL / ONE_ROTATION_TICK;
 		Reset_LCD_Pointers();
 		Print_Coord(real_coord, REAL);
 	}
 
-	lcd_write();
-
-	if ((encoder_value >= HARD_LIMIT_UP_IN_TICK) || (encoder_value <= LIMIT_DOWN_IN_TICK)) {
-		Set_Inverter(STOP, 0);
-		Brush_Lock();
-		return 1;
+	if (lcd_timeout == LCD_TIMEOUT) {
+		lcd_timeout = 0;
+		LCD_Write(LCD_ADDR);
 	}
-	return 0;
 }
 
 /**
@@ -1182,47 +1202,25 @@ void Move_Brush()
 	timeout_for_ramp = 0;
 	time_for_change_ramp = 0;
 
-	if (direction == FORWARD)
+	if (direction == FORWARD) //tesoghakan dashtic hervanum e ays depqum
 	{
-		while (encoder_value < set_tick)
+
+		if (is_min_speed == 1)
 		{
-			if (Check_Arrange_Out() == 1)
-			{
-				break;
-			}
-
-			if (is_min_speed == 0)
-			{
-				is_move = 1;
-				if (encoder_value < set_tick - ENC_VAL_FOR_RAMP_DOWN)
-				{
-					ramp = RAMP_UP;
-				} else
-				{
-					ramp = RAMP_DOWN;
-				}
-
-				if (ramp != old_ramp && ramp == RAMP_DOWN)
-				{
-					timeout_for_ramp = 0;
-					time_for_change_ramp = 0;
-				}
-				old_ramp = ramp;
-
-				if (timeout_for_ramp < INTERVAL_FOR_RAMP && time_for_change_ramp == TIME_FOR_CHANGE_RAMP){
-					time_for_change_ramp = 0;
-					Change_Speed(&speed, ramp);
-				}
-			}
-			//TODO
-			Set_Inverter(FORWARD, speed);
+			speed = 1400;
+		} else {
+			speed = 2200;
 		}
-
-
-		/*while (encoder_value < set_tick + ENC_VAL_FOR_RAMP_DOWN)
+		while (encoder_value < (set_tick + GO_OVER_IN_TICK))
 		{
-			if (Check_Arrange_Out() == 1)
+			//if there is no power, save coordinate
+			if (HAL_GPIO_ReadPin(Power_In_GPIO_Port, Power_In_Pin) == 0)
 			{
+				Save_Coord(encoder_value);
+			}
+			if ((encoder_value >= HARD_LIMIT_UP_IN_TICK) || (encoder_value <= LIMIT_DOWN_IN_TICK))
+			{
+				arrange_out = 1;
 				break;
 			}
 
@@ -1237,39 +1235,54 @@ void Move_Brush()
 					ramp = RAMP_DOWN;
 				}
 
-				if (ramp != old_ramp && ramp == RAMP_DOWN)
+				if ((ramp != old_ramp) && (ramp == RAMP_DOWN))
 				{
 					timeout_for_ramp = 0;
 					time_for_change_ramp = 0;
+					speed = 1600;
 				}
 				old_ramp = ramp;
 
-				if (timeout_for_ramp < INTERVAL_FOR_RAMP && time_for_change_ramp == TIME_FOR_CHANGE_RAMP){
-					time_for_change_ramp = 0;
-					Change_Speed(&speed, ramp);
-				}
+				//if ((timeout_for_ramp < INTERVAL_FOR_RAMP) && (time_for_change_ramp == TIME_FOR_CHANGE_RAMP))
+				//{
+				//	time_for_change_ramp = 0;
+				//	Change_Speed(&speed, ramp);
+				//}
 			}
 			Set_Inverter(FORWARD, speed);
+			Print_Current_Coord();	//print current real coord
 		}
 
-		Set_Inverter(STOP, 0);
-
+		Set_Inverter(STOP, 0);	//TODO	speed should be 0???
+		speed = 1400;
 		if (arrange_out == 0)
 		{
-			while(encoder_value > set_tick) {
-				if (Check_Arrange_Out() == 1) {
+			while(encoder_value > (set_tick+DELTA))
+			{
+				//if there is no power, save coordinate
+				if (HAL_GPIO_ReadPin(Power_In_GPIO_Port, Power_In_Pin) == 0)
+				{
+					Save_Coord(encoder_value);
+				}
+				if ((encoder_value >= HARD_LIMIT_UP_IN_TICK) || (encoder_value <= LIMIT_DOWN_IN_TICK))
+				{
 					break;
 				}
 				Set_Inverter(BACK, speed);
+				Print_Current_Coord();
 			}
-		}*/
+		}
 
 
-	} else if (direction == BACK)
-	{
-		while (encoder_value > set_tick)
+		/*while (encoder_value < set_tick)
 		{
-			if (Check_Arrange_Out() == 1)
+			//if there is no power, save coordinate
+			if (HAL_GPIO_ReadPin(Power_In_GPIO_Port, Power_In_Pin) == 0)
+			{
+				Save_Coord(encoder_value);
+			}
+
+			if ((encoder_value >= HARD_LIMIT_UP_IN_TICK) || (encoder_value <= LIMIT_DOWN_IN_TICK))
 			{
 				break;
 			}
@@ -1277,7 +1290,7 @@ void Move_Brush()
 			if (is_min_speed == 0)
 			{
 				is_move = 1;
-				if (encoder_value > set_tick + ENC_VAL_FOR_RAMP_DOWN)
+				if (encoder_value < (set_tick - ENC_VAL_FOR_RAMP_DOWN))
 				{
 					ramp = RAMP_UP;
 				} else
@@ -1285,35 +1298,103 @@ void Move_Brush()
 					ramp = RAMP_DOWN;
 				}
 
-				if (ramp != old_ramp && ramp == RAMP_DOWN)
+				if ((ramp != old_ramp) && (ramp == RAMP_DOWN))
 				{
 					timeout_for_ramp = 0;
 					time_for_change_ramp = 0;
 				}
 				old_ramp = ramp;
 
-				if (timeout_for_ramp < INTERVAL_FOR_RAMP && time_for_change_ramp == TIME_FOR_CHANGE_RAMP){
+				if ((timeout_for_ramp < INTERVAL_FOR_RAMP) && (time_for_change_ramp == TIME_FOR_CHANGE_RAMP))
+				{
 					time_for_change_ramp = 0;
 					Change_Speed(&speed, ramp);
 				}
 			}
-			//TODO save coord??????????????
+			//TODO
+			Set_Inverter(FORWARD, speed);
+			Print_Current_Coord();
+		}*/
+
+
+
+	} else if (direction == BACK)
+	{
+		speed = 2200;
+		if (is_min_speed == 1)
+		{
+			speed = 1400;
+		}
+		while (encoder_value > (set_tick+DELTA))
+		{
+			//if there is no power, save coordinate
+			if (HAL_GPIO_ReadPin(Power_In_GPIO_Port, Power_In_Pin) == 0)
+			{
+				Save_Coord(encoder_value);
+			}
+			if ((encoder_value >= HARD_LIMIT_UP_IN_TICK) || (encoder_value <= LIMIT_DOWN_IN_TICK))
+			{
+				break;
+			}
+
+			if (is_min_speed == 0)
+			{
+				is_move = 1;
+				if (encoder_value > (set_tick + TICK_FOR_RAMP_DOWN))
+				{
+					ramp = RAMP_UP;
+				} else
+				{
+					ramp = RAMP_DOWN;
+				}
+
+				if ((ramp != old_ramp) && (ramp == RAMP_DOWN))
+				{
+					timeout_for_ramp = 0;
+					time_for_change_ramp = 0;
+					speed = 1400;
+				}
+				old_ramp = ramp;
+
+				//if ((timeout_for_ramp < INTERVAL_FOR_RAMP) && (time_for_change_ramp == TIME_FOR_CHANGE_RAMP))
+				//{
+				//	time_for_change_ramp = 0;
+					//Change_Speed(&speed, ramp);
+				//}
+			}
+			//TODO save coord
 			Set_Inverter(BACK, speed);
+			Print_Current_Coord();
 		}
 	}
-	arrange_out = 0;
-	Reset_LCD_Pointers();
+
+	encoder1 = encoder_value;
+	Brush_Lock();
+	encoder2 = encoder_value;
 	Set_Inverter(STOP, 0);
 	//encoder1 = encoder_value;
 	HAL_DAC_Stop(&hdac, DAC_CHANNEL_1);
+
+	//if there is no power, save coordinate
+	if (HAL_GPIO_ReadPin(Power_In_GPIO_Port, Power_In_Pin) == 0)
+	{
+		Save_Coord(encoder_value);
+	}
+	print_real_coord_time = 0;
+	is_move = 0;
+	timeout_for_ramp = 0;
+	time_for_change_ramp = 0;
+	arrange_out = 0;
+	Reset_LCD_Pointers();
+
 	//encoder2 = encoder_value;
-	Brush_Lock();
+
 	//encoder3 = encoder_value;
 	//Turns off inverter
-
+	HAL_Delay(1000);
 	//Locks brush to fix it
-
-	real_coord = (float)encoder_value * ONE_ROTATION_VAL / 1000;
+	encoder3 = encoder_value;
+	real_coord = (double)encoder_value * ONE_ROTATION_VAL / ONE_ROTATION_TICK;
 
 	//Saves real coordinate to backup register
 	Save_Coord(encoder_value);
@@ -1553,17 +1634,27 @@ void Check_Pedal()
 void Print_Coord(double r_coord, uint8_t coord_name)
 {
 	char temp_buf[10];
+	char temp_buf_enc[7];
 	sprintf(temp_buf, "%6.1f", r_coord);
+	sprintf(temp_buf_enc, "%ld", encoder_value);
 
 	for (int i = 0; i < sizeof(temp_buf); ++i) {
 	  if (temp_buf[i] == 0x20) {
 		  temp_buf[i] = '0';
 	  }
 	}
+
+	for (int i = 0; i < sizeof(temp_buf_enc); ++i) {
+	  if (temp_buf_enc[i] == 0) {
+		  temp_buf_enc[i] = 0x20;
+	  }
+	}
+
 	Reset_LCD_Pointers();
 	if (coord_name == REAL) {
 		Write_LCD_Buffer((char*)"Real  ", sizeof("Real  "), ROW_1);
 		Write_LCD_Buffer(temp_buf, COORD_SIZE_WITH_POINT, R_COORD_POS);
+		Write_LCD_Buffer(temp_buf_enc, 7, ROW_3);
 	} else {
 		Write_LCD_Buffer((char*)"Set   ", sizeof("Set   "), ROW_2);
 		Write_LCD_Buffer(temp_buf, COORD_SIZE_WITH_POINT, S_COORD_POS);
@@ -1575,9 +1666,15 @@ void Check_Hand_Catch()
 	if (input_state.hand_catch_is_pressed == 1) {
 		hand_catch_detected = 1;
 
+		//if there is no power, save coordinate
+		if (HAL_GPIO_ReadPin(Power_In_GPIO_Port, Power_In_Pin) == 0)
+		{
+			Save_Coord(encoder_value);
+		}
+
 		if (print_real_coord_time == TIMEOUT_PRINT_REAL) {
 			print_real_coord_time = 0;
-			real_coord = (float)encoder_value * ONE_ROTATION_VAL / 1000;
+			real_coord = (double)encoder_value * ONE_ROTATION_VAL / ONE_ROTATION_TICK;
 			Reset_LCD_Pointers();
 			Print_Coord(real_coord, REAL);
 		}
@@ -1585,7 +1682,7 @@ void Check_Hand_Catch()
 		if (hand_catch_detected == 1) {
 			hand_catch_detected = 0;
 			Brush_Lock();
-			real_coord = (float)encoder_value * ONE_ROTATION_VAL / 1000;
+			real_coord = (double)encoder_value * ONE_ROTATION_VAL / ONE_ROTATION_TICK;
 
 			//Prints real coordinate to LCD
 			Print_Coord(real_coord, REAL);
@@ -1602,19 +1699,16 @@ void Check_Hand_Catch()
 ///////////////////////////////////////////////////////////////////////////////
 //								Main Task									 //
 ///////////////////////////////////////////////////////////////////////////////
-void lcd_write()
-{
-	if (lcd_timeout == LCD_TIMEOUT) {
-		lcd_timeout = 0;
-		LCD_Write(LCD_ADDR);
-	}
-}
+
 uint8_t data = 0;
 
 void Main_Task()
 {
 	#ifndef TEST
-		lcd_write();
+		if (lcd_timeout == LCD_TIMEOUT) {
+			lcd_timeout = 0;
+			LCD_Write(LCD_ADDR);
+		}
 		state_machine();
 	#else
 		if (keypad_timeout == KEYPAD_TIMEOUT) {
@@ -1626,32 +1720,39 @@ void Main_Task()
 			data = Read_Keypad_Buffer(keypad_buffer);
 		}
 
+		speed = 1600;
 		if (data == 'A')
 		{
-			HAL_DAC_Start(&hdac, DAC_CHANNEL_1);
+			data = 0;
 
-			if (encoder_value >= 1000)
+			//HAL_DAC_Start(&hdac, DAC_CHANNEL_1);
+			Brush_Unlock();
+			encoder_value = 0;
+			//Set_Inverter(FORWARD, speed);
+			while(encoder_value < 3000)
 			{
-				encoder_value = 0;
+
 			}
-			while(encoder_value < 1000)
-			{
-				Set_Inverter(FORWARD, speed);
-			}
-			HAL_DAC_Stop(&hdac, DAC_CHANNEL_1);
-			Set_Inverter(STOP, speed);
-		} else if (data == 'B') {
-			HAL_DAC_Start(&hdac, DAC_CHANNEL_1);
-			if (encoder_value <= 0)
-			{
-				encoder_value = 1000;
-			}
+			//Brush_Lock();
+			//Set_Inverter(STOP, speed);
+			//HAL_DAC_Stop(&hdac, DAC_CHANNEL_1);
+
+
+		} else if (data == 'B')
+		{
+			data = 0;
+			//HAL_DAC_Start(&hdac, DAC_CHANNEL_1);
+			Brush_Unlock();
+			encoder_value = 3000;
+			//Set_Inverter(BACK, speed);
 			while(encoder_value > 0)
 			{
-				Set_Inverter(BACK, speed);
+
 			}
-			HAL_DAC_Stop(&hdac, DAC_CHANNEL_1);
-			Set_Inverter(STOP, speed);
+			//Brush_Lock();
+			//Set_Inverter(STOP, speed);
+			//HAL_DAC_Stop(&hdac, DAC_CHANNEL_1);
+
 		}
 	#endif
 }
@@ -1660,12 +1761,14 @@ void state_machine()
 {
 	switch(mode)
 	{
+
 		case SELECT:
 		{
 			if (keypad_timeout == KEYPAD_TIMEOUT) {
 				keypad_timeout = 0;
 				Read_Keypad();
 			}
+			pressed_count = 0;
 			Check_Pressed_Key();
 			break;
 		}

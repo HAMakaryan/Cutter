@@ -212,7 +212,8 @@ void SystemClock_Config(void)
 static void Read_Real_Coord()
 {
 	//Save_Coord(0);
-	real_coord = (float)encoder_value * ONE_ROTATION_VAL / 1000;
+	encoder_value = Read_Coord();
+	real_coord = (double)encoder_value * ONE_ROTATION_VAL / ONE_ROTATION_TICK;
 	set_coord = real_coord;
 }
 

@@ -1,6 +1,6 @@
 Configuration	Cutter
-STM32CubeMX 	5.6.1
-Date	08/02/2020
+STM32CubeMX 	6.0.1
+Date	09/20/2020
 MCU	STM32F767ZITx
 
 
@@ -254,7 +254,7 @@ SOFTWARE PROJECT
 
 Project Settings : 
 Project Name : Cutter
-Project Folder : W:\Cutter_WS\git_project\Cutter\ProjectsSW
+Project Folder : C:\Users\stanok\Desktop\Cutter\ProjectsSW
 Toolchain / IDE : STM32CubeIDE
 Firmware Package Name and Version : STM32Cube FW_F7 V1.16.0
 
