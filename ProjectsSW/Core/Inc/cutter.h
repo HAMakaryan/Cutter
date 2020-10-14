@@ -45,7 +45,7 @@
 #define ERROR 	1
 #define SINGLE	2
 
-#define COORD_SIZE				5
+#define COORD_SIZE				6
 #define COORD_SIZE_WITH_POINT	COORD_SIZE+1
 
 #define PRESSED		1
@@ -78,24 +78,32 @@
 #define	MAX_DAC_VALUE				2200
 #define MIN_SPEED					1400
 
+#define EXTRA_COORD 	500
+#define AVG_COUNT		5
+//#define MIN_COORD		600
+
 #define SOFT_LIMIT_UP				1050	//mm
 #define HARD_LIMIT_UP				1056	//mm
 #define LIMIT_DOWN					95		//mm
 
-#define HARD_LIMIT_UP_IN_TICK			(HARD_LIMIT_UP * ONE_ROTATION_TICK / ONE_ROTATION_VAL)
-#define LIMIT_DOWN_IN_TICK				(LIMIT_DOWN * ONE_ROTATION_TICK / ONE_ROTATION_VAL)
+#define HARD_LIMIT_UP_IN_TICK			(uint32_t)(HARD_LIMIT_UP * ONE_ROTATION_TICK / ONE_ROTATION_VAL)
+#define LIMIT_DOWN_IN_TICK				(uint32_t)(LIMIT_DOWN * ONE_ROTATION_TICK / ONE_ROTATION_VAL)
 
 //#define MIN_DISTANCE						30 //mm
-#define MIN_DISTANCE_IN_TICK				500
+#define MIN_DISTANCE_IN_TICK				600
 
-#define TICK_FOR_RAMP_DOWN			600
-#define INTERVAL_FOR_RAMP			3000	//3second
-#define TIME_FOR_CHANGE_RAMP		10
+//#define TICK_FOR_RAMP_DOWN			600
+//#define INTERVAL_FOR_RAMP			3000	//3second
+//#define TIME_FOR_CHANGE_RAMP		10
 
 #define TIMEOUT_PRINT_REAL			1000
 
 //#define GO_OVER					5 //mm
-#define GO_OVER_IN_TICK			600
+//#define GO_OVER_IN_TICK			600
+
+#define MAX_SPEED	2200
+#define MID_SPEED	1600
+#define MIN_SPEED   1400
 
 typedef enum {
 	SELECT,
@@ -106,6 +114,38 @@ typedef enum {
 	CHECK_PEDAL,
 	CUTTING
 }system_mode_t;
+
+typedef enum {
+	MAIN_MENU_CMD = 0,
+	CALLIBRATION_CMD,
+	EDIT_MODE_CMD,
+	CUTTING_CMD,
+
+	REAL_CMD,
+	SET_CMD,
+	REAL_COORD_CMD,
+	SET_COORD_CMD,
+	ZERO_S_COORD_CMD,
+	ZERO_R_COORD_CMD,
+	MIN_2_ROW_CMD,
+	MAX_2_ROW_CMD,
+	MIN_1_ROW_CMD,
+	MAX_1_ROW_CMD,
+	SPACE_FOR_MAX_MIN_1_ROW_CMD,
+	SPACE_FOR_MAX_MIN_2_ROW_CMD,
+
+	ARE_YOU_SURE_CMD,
+	SPACE_2_ROW_CMD,
+	SPACE_3_ROW_CMD,
+	SPACE_4_ROW_CMD,
+
+	CUT_IS_DONE_CMD,
+	ALLOWED_CUTTING_CMD,
+	HAND_CATCHING_CMD,
+	BRUSH_MOVING_CMD,
+	ENCODER_VAL_CMD
+
+} lcd_commands;
 
 void LCD_Init(uint8_t lcd_addr);
 void LCD_Write(uint8_t lcd_addr);

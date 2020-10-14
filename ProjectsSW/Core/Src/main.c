@@ -20,6 +20,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "cmsis_os.h"
 #include "adc.h"
 #include "can.h"
 #include "dac.h"
@@ -62,6 +63,7 @@ extern uint8_t number_accept_count;
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
+void MX_FREERTOS_Init(void);
 /* USER CODE BEGIN PFP */
 static void Read_Real_Coord();
 static void Print_Initial_Status();
@@ -121,12 +123,19 @@ int main(void)
   //Inits 4x4 Keypad
   Keypad_Init();
   //Enables interrupt for LCD
-  HAL_NVIC_SetPriority(I2C1_EV_IRQn, 0, 0);
-  HAL_NVIC_EnableIRQ(I2C1_EV_IRQn);
+  //HAL_NVIC_SetPriority(I2C1_EV_IRQn, 0, 0);
+  //HAL_NVIC_EnableIRQ(I2C1_EV_IRQn);
   //Starts encoder
   HAL_TIM_Encoder_Start_IT(&htim4, TIM_CHANNEL_1);
   /* USER CODE END 2 */
 
+  /* Init scheduler */
+  osKernelInitialize();  /* Call init function for freertos objects (in freertos.c) */
+  MX_FREERTOS_Init();
+  /* Start scheduler */
+  osKernelStart();
+
+  /* We should never get here as control is now taken by the scheduler */
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
 
@@ -134,7 +143,6 @@ int main(void)
 
   while (1)
   {
-	  Main_Task();
 
     /* USER CODE END WHILE */
 
@@ -241,6 +249,27 @@ static void Print_Initial_Status()
 	LCD_SendString(LCD_ADDR, " *-Edit #-Cut C-Cal ");
 }
 /* USER CODE END 4 */
+
+ /**
+  * @brief  Period elapsed callback in non blocking mode
+  * @note   This function is called  when TIM2 interrupt took place, inside
+  * HAL_TIM_IRQHandler(). It makes a direct call to HAL_IncTick() to increment
+  * a global variable "uwTick" used as application time base.
+  * @param  htim : TIM handle
+  * @retval None
+  */
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+  /* USER CODE BEGIN Callback 0 */
+
+  /* USER CODE END Callback 0 */
+  if (htim->Instance == TIM2) {
+    HAL_IncTick();
+  }
+  /* USER CODE BEGIN Callback 1 */
+
+  /* USER CODE END Callback 1 */
+}
 
 /**
   * @brief  This function is executed in case of error occurrence.

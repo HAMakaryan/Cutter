@@ -13,6 +13,10 @@
 #include "main.h"
 #include "cutter.h"
 #include "math.h"
+#include "cmsis_os2.h"
+#include "FreeRTOS.h"
+#include "task.h"
+#include "queue.h"
 
 extern I2C_HandleTypeDef hi2c1;
 extern UART_HandleTypeDef huart3;
@@ -61,6 +65,7 @@ double set_coord 			= 0;
 double initial_coord			= 0;
 double coord_diff 			= 0;
 int32_t encoder_value 		= 0;
+int32_t previous_encoder_value 		= 0;
 extern double real_coord;
 
 uint16_t speed = MIN_SPEED;
@@ -84,6 +89,10 @@ uint8_t hand_catch_detected = 0;
 uint16_t print_real_coord_time = 0;
 
 uint8_t is_limited_number = 0;
+
+double temp_coord = 0;
+
+extern osMessageQueueId_t myQueue01Handle;
 ///////////////////////////////////////////////////////////////////////////////
 //							       LCD									     //
 ///////////////////////////////////////////////////////////////////////////////
@@ -275,6 +284,76 @@ void LCD_Write(uint8_t lcd_addr)
 			HAL_I2C_Master_Transmit_IT(&hi2c1, lcd_addr, data_arr, 4);
 		}
 	}
+}
+
+/**
+  * @brief	Displays a char on the LCD with non-blocking mode.
+  * @retval None
+  */
+void LCD_Write1(uint8_t lcd_addr, uint16_t data)
+{
+	//every ms
+	//if (!Empty(lcd_buf_length)) {
+		//uint16_t data = LCD_Read_Buffer();
+		uint8_t up = data & 0xF0;
+		uint8_t lo = (data << 4) & 0xF0;
+		uint8_t rs = 0;
+		rs = PIN_RS;
+
+		//if data
+		if ((data & LCD_DATA_MASK) == LCD_DATA_MASK) {
+			data_arr[0] = up|rs|BACKLIGHT|PIN_EN;
+			data_arr[1] = up|rs|BACKLIGHT;
+			data_arr[2] = lo|rs|BACKLIGHT|PIN_EN;
+			data_arr[3] = lo|rs|BACKLIGHT;
+		//if command
+		} else {
+			rs = 0;
+			data_arr[0] = up|rs|BACKLIGHT|PIN_EN;
+			data_arr[1] = up|rs|BACKLIGHT;
+			data_arr[2] = lo|rs|BACKLIGHT|PIN_EN;
+			data_arr[3] = lo|rs|BACKLIGHT;
+		}
+
+		//if (completed == 1) {
+		//	completed = 0;
+			HAL_I2C_Master_Transmit_IT(&hi2c1, lcd_addr, data_arr, 4);
+		//}
+	//}
+}
+
+void LCD_Init1(uint8_t lcd_addr)
+{
+	/* Initializes the following
+	* Function Set
+	* Entry mode
+	* Display on/off
+	* Clear Display
+	  */
+	HAL_Delay(150); // / 50 er
+	LCD_Write1(LCD_ADDR, 0x30);
+	HAL_Delay(50);
+	HAL_Delay(5);
+	LCD_Write1(LCD_ADDR, 0x30);
+	HAL_Delay(50);
+	HAL_Delay(1);
+	LCD_Write1(LCD_ADDR, 0x30);
+	HAL_Delay(50);
+	HAL_Delay(10);
+	LCD_Write1(LCD_ADDR, 0x02);
+	HAL_Delay(50);
+	HAL_Delay(10);
+
+	LCD_Write1(LCD_ADDR, 0x28);      // 4 bit mode, 2 line, 5x7 matrix
+	HAL_Delay(50);
+	LCD_Write1(LCD_ADDR, 0x0C);      // Display on, Cursor off
+	HAL_Delay(50);
+	LCD_Write1(LCD_ADDR, 0x01);      // Clear Display Screen
+	HAL_Delay(50);
+	LCD_Write1(LCD_ADDR, 0x06);      // Increment cursor, no shift
+	HAL_Delay(50);
+	LCD_Write1(LCD_ADDR, 0x80);
+	HAL_Delay(50);
 }
 
 /**
@@ -645,7 +724,7 @@ void Unlock_Handle()
   * @param  Cursor position
   * @retval None
   */
-void Write_LCD_Buffer(char* buf, uint8_t size, uint8_t cursor)
+/*void Write_LCD_Buffer(char* buf, uint8_t size, uint8_t cursor)
 {
 	uint16_t lcd_buf[LCD_BUF_SIZE];
 	lcd_buf[0] = cursor;
@@ -666,6 +745,39 @@ void Write_LCD_Buffer(char* buf, uint8_t size, uint8_t cursor)
 		}
 	}
 	LCD_Write_Buffer(lcd_buf, l_size);
+}*/
+
+/**
+  * @brief	Writes data to LCD buffer.
+  * @param	Data to be written
+  * @param  Data size
+  * @param  Cursor position
+  * @retval None
+  */
+void Write_LCD_Buffer(char* buf, uint8_t size, uint8_t cursor)
+{
+	uint8_t lcd_buf[30];
+
+	if (cursor != ROW_3)
+	{
+		for (uint8_t i = 0; i < size; ++i) {
+			lcd_buf[i] = buf[i];
+		}
+
+		if (buf[4] != '.') {
+			if (cursor == S_COORD_POS || cursor == R_COORD_POS) {
+				uint16_t temp = 0;
+				temp = lcd_buf[4];
+				lcd_buf[4] = '.';
+				lcd_buf[5] = temp;
+				lcd_buf[6] = '\0';
+			}
+		}
+
+		LCD_SendString(LCD_ADDR, lcd_buf);
+	} else {
+		LCD_SendString(LCD_ADDR, buf);
+	}
 }
 
 /**
@@ -695,11 +807,11 @@ uint8_t Get_Direction_and_Diff()
 
 	//set_tick = set_tick + 30;
 
-	if ((encoder_value >= HARD_LIMIT_UP_IN_TICK) || (encoder_value <= LIMIT_DOWN_IN_TICK)) {
+	if ((encoder_value > HARD_LIMIT_UP_IN_TICK) || (encoder_value < LIMIT_DOWN_IN_TICK)) {
 		return 1;
 	}
 
-	if ((set_tick >= HARD_LIMIT_UP_IN_TICK) || (set_tick <= LIMIT_DOWN_IN_TICK)) {
+	if ((set_tick > HARD_LIMIT_UP_IN_TICK) || (set_tick < LIMIT_DOWN_IN_TICK)) {
 		return 1;
 	}
 
@@ -741,6 +853,7 @@ uint8_t Get_Direction_and_Diff()
 
 uint8_t debug = 0;
 uint8_t pressed_count = 0;
+uint8_t queue_var = 0;
 
 void Collects_Digits(int8_t coord_name)
 {
@@ -754,8 +867,40 @@ void Collects_Digits(int8_t coord_name)
 	{
 		if  (pressed_count == 0)
 		{
-			Write_LCD_Buffer((char*)"                    ", LCD_ROW_SIZE, ROW_3);
-			Write_LCD_Buffer((char*) " *-Edit #-Cut C-Cal ", LCD_ROW_SIZE, ROW_4);
+			//Reset_LCD_Pointers();
+			if (coord_name == SET)
+			{
+				set_coord = temp_coord;
+				coord_size = Get_Coord_Size(coord_array, set_coord);
+				//Write_LCD_Buffer(coord_array, COORD_SIZE, S_COORD_POS);
+				//send queue 1
+				queue_var = SET_COORD_CMD;
+				xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
+
+			} else if (coord_name == REAL)
+			{
+				real_coord = temp_coord;
+				coord_size = Get_Coord_Size(coord_array, real_coord);
+				//Write_LCD_Buffer(coord_array, COORD_SIZE, R_COORD_POS);
+				queue_var = REAL_COORD_CMD;
+				xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
+
+				//Write_LCD_Buffer((char*)"Set   ", sizeof("Set   "), ROW_2);
+				queue_var = SET_CMD;
+				xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
+
+				coord_size = Get_Coord_Size(coord_array, set_coord);
+				queue_var = SET_COORD_CMD;
+				xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
+				//Write_LCD_Buffer(coord_array, COORD_SIZE, S_COORD_POS);
+				//send queue 2
+			}
+			queue_var = SPACE_3_ROW_CMD;
+			xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
+			//Write_LCD_Buffer((char*)"                    ", LCD_ROW_SIZE, ROW_3);
+			queue_var = MAIN_MENU_CMD;
+			xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
+			//Write_LCD_Buffer((char*) " *-Edit #-Cut C-Cal ", LCD_ROW_SIZE, ROW_4);
 			mode = SELECT;
 		}
 	}
@@ -784,20 +929,32 @@ void Collects_Digits(int8_t coord_name)
 					}
 					coord_array[COORD_SIZE-1] = data;
 
-					Reset_LCD_Pointers();
+					//Reset_LCD_Pointers();
 					if (coord_name == REAL) {
-						Write_LCD_Buffer(coord_array, COORD_SIZE, R_COORD_POS);
+						//Write_LCD_Buffer(coord_array, COORD_SIZE, R_COORD_POS);
+						queue_var = REAL_COORD_CMD;
+						xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
+						//send queue 3
 					} else if (coord_name == SET) {
-						Write_LCD_Buffer(coord_array, COORD_SIZE, S_COORD_POS);
+						//Write_LCD_Buffer(coord_array, COORD_SIZE, S_COORD_POS);
+						queue_var = SET_COORD_CMD;
+						xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
+						//send queue 4
 					}
 
 					if (is_limited_number == 1)
 					{
 						is_limited_number = 0;
 						if (coord_name == REAL) {
-							Write_LCD_Buffer((char*)"   ", 3, 0x8E);
+							//Write_LCD_Buffer((char*)"   ", 3, 0x8E);
+							queue_var = SPACE_FOR_MAX_MIN_1_ROW_CMD;
+							xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
+							//send queue 5
 						} else {
-							Write_LCD_Buffer((char*)"   ", 3, 0xCE);
+							//Write_LCD_Buffer((char*)"   ", 3, 0xCE);
+							queue_var = SPACE_FOR_MAX_MIN_2_ROW_CMD;
+							xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
+							//send queue 6
 						}
 					}
 				}
@@ -816,29 +973,47 @@ void Collects_Digits(int8_t coord_name)
 				}
 				coord_array[0] = '0';
 
-				Reset_LCD_Pointers();
+				//Reset_LCD_Pointers();
 				if (coord_name == REAL) {
-					Write_LCD_Buffer(coord_array, COORD_SIZE, R_COORD_POS);
+					//Write_LCD_Buffer(coord_array, COORD_SIZE, R_COORD_POS);
+					queue_var = REAL_COORD_CMD;
+					xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
+					//send queue 7
 				} else if (coord_name == SET) {
-					Write_LCD_Buffer(coord_array, COORD_SIZE, S_COORD_POS);
+					//Write_LCD_Buffer(coord_array, COORD_SIZE, S_COORD_POS);
+					queue_var = SET_COORD_CMD;
+					xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
+					//send queue 8
 				}
 				if (is_limited_number == 1)
 				{
 					is_limited_number = 0;
 					if (coord_name == REAL) {
-						Write_LCD_Buffer((char*)"   ", 3, 0x8E);
+						//Write_LCD_Buffer((char*)"   ", 3, 0x8E);
+						queue_var = SPACE_FOR_MAX_MIN_1_ROW_CMD;
+						xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
+						//send queue 9
 					} else {
-						Write_LCD_Buffer((char*)"   ", 3, 0xCE);
+						//Write_LCD_Buffer((char*)"   ", 3, 0xCE);
+						queue_var = SPACE_FOR_MAX_MIN_2_ROW_CMD;
+						xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
+						//send queue 10
 					}
 				}
 			}
 		} else if (number_accept_count == 1) {
 			number_accept_count = 0;
-			Reset_LCD_Pointers();
+			//Reset_LCD_Pointers();
 			if (coord_name == SET) {
-				Write_LCD_Buffer((char*)"     Edit Mode      ", LCD_ROW_SIZE, ROW_4);
+				queue_var = EDIT_MODE_CMD;
+				xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
+				//Write_LCD_Buffer((char*)"     Edit Mode      ", LCD_ROW_SIZE, ROW_4);
+				//send queue 11
 			} else {
-				Write_LCD_Buffer((char*)"                    ", LCD_ROW_SIZE, ROW_4);
+				queue_var = SPACE_4_ROW_CMD;
+				xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
+				//Write_LCD_Buffer((char*)"                    ", LCD_ROW_SIZE, ROW_4);
+				//send queue 12
 			}
 		}
 	}
@@ -847,7 +1022,7 @@ void Collects_Digits(int8_t coord_name)
 		pressed_count++;
 		number_accept_count++;
 		if (number_accept_count == 1) {
-			Reset_LCD_Pointers();
+			//Reset_LCD_Pointers();
 			//Creates number from collected digits
 			if (coord_name == SET) {
 				set_coord = Create_Number(coord_array);
@@ -871,20 +1046,34 @@ void Collects_Digits(int8_t coord_name)
 					coord_array[4] = temp_buf[5];
 
 					if (set_coord < LIMIT_DOWN) {
-						Write_LCD_Buffer((char*)"Min", 3, 0xCE);
+						//Write_LCD_Buffer((char*)"Min", 3, 0xCE);
+						queue_var = MIN_2_ROW_CMD;
+						xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
+						//send queue 13
 						set_coord = LIMIT_DOWN;
 					} else if (set_coord > SOFT_LIMIT_UP) {
-						Write_LCD_Buffer((char*)"Max", 3, 0xCE);
+						//Write_LCD_Buffer((char*)"Max", 3, 0xCE);
+						queue_var = MAX_2_ROW_CMD;
+						xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
+						//send queue 14
 						set_coord = SOFT_LIMIT_UP;
 					}
 					is_limited_number = 1;
 					char temp_array[7];
 					coord_size = Get_Coord_Size(temp_array, set_coord);
-					Write_LCD_Buffer(coord_array, COORD_SIZE, S_COORD_POS);
+					//Write_LCD_Buffer(coord_array, COORD_SIZE, S_COORD_POS);
+					queue_var = SET_COORD_CMD;
+					xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
+					//send queue 15
 
 				} else {
-					Write_LCD_Buffer((char*)"   Are you sure?    ", LCD_ROW_SIZE, ROW_4);
-					Write_LCD_Buffer((char*)"   ", 3, 0xCE);
+					queue_var = ARE_YOU_SURE_CMD;
+					xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
+					queue_var = SPACE_FOR_MAX_MIN_2_ROW_CMD;
+					xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
+					//Write_LCD_Buffer((char*)"   Are you sure?    ", LCD_ROW_SIZE, ROW_4);
+					//Write_LCD_Buffer((char*)"   ", 3, 0xCE);
+					//send queue 16
 				}
 			} else if (coord_name == REAL) {
 				real_coord = Create_Number(coord_array);
@@ -908,20 +1097,34 @@ void Collects_Digits(int8_t coord_name)
 					coord_array[4] = temp_buf[5];
 
 					if (real_coord < LIMIT_DOWN) {
-						Write_LCD_Buffer((char*)"Min", 3, 0x8E);
+						//Write_LCD_Buffer((char*)"Min", 3, 0x8E);
+						queue_var = MIN_1_ROW_CMD;
+						xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
+						//send queue 17
 						real_coord = LIMIT_DOWN;
 					} else if (real_coord > SOFT_LIMIT_UP) {
-						Write_LCD_Buffer((char*)"Max", 3, 0x8E);
+						//Write_LCD_Buffer((char*)"Max", 3, 0x8E);
+						queue_var = MAX_1_ROW_CMD;
+						xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
+						//send queue 18
 						real_coord = SOFT_LIMIT_UP;
 					}
 					is_limited_number = 1;
 					char temp_array[7];
 					coord_size = Get_Coord_Size(temp_array, real_coord);
-					Write_LCD_Buffer(coord_array, COORD_SIZE, R_COORD_POS);
+					//Write_LCD_Buffer(coord_array, COORD_SIZE, R_COORD_POS);
+					queue_var = REAL_COORD_CMD;
+					xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
+					//send queue 19
 
 				} else {
-					Write_LCD_Buffer((char*)"   Are you sure?    ", LCD_ROW_SIZE, ROW_4);
-					Write_LCD_Buffer((char*)"   ", 3, 0x8E);
+					//Write_LCD_Buffer((char*)"   Are you sure?    ", LCD_ROW_SIZE, ROW_4);
+					queue_var = ARE_YOU_SURE_CMD;
+					xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
+					//Write_LCD_Buffer((char*)"   ", 3, 0x8E);
+					queue_var = SPACE_FOR_MAX_MIN_1_ROW_CMD;
+					xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
+					//send queue 20
 				}
 			}
 
@@ -929,25 +1132,36 @@ void Collects_Digits(int8_t coord_name)
 		} else if (number_accept_count == 2) {
 			number_accept_count = 0;
 
-			Reset_LCD_Pointers();
+			//Reset_LCD_Pointers();
 			if (coord_name == REAL) {
 				Print_Coord(set_coord, SET);
-				Write_LCD_Buffer((char*)"                    ", LCD_ROW_SIZE, ROW_3);
-				Write_LCD_Buffer((char*) " *-Edit #-Cut C-Cal ", LCD_ROW_SIZE, ROW_4);
+				//Write_LCD_Buffer((char*)"                    ", LCD_ROW_SIZE, ROW_3);
+				//Write_LCD_Buffer((char*) " *-Edit #-Cut C-Cal ", LCD_ROW_SIZE, ROW_4);
+				queue_var = SPACE_3_ROW_CMD;
+				xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
+				queue_var = MAIN_MENU_CMD;
+				xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
+				//send queue 21
 				encoder_value = (double)real_coord * ONE_ROTATION_TICK / ONE_ROTATION_VAL;
 				Save_Coord(encoder_value);
 				//Goes to Select Mode
 				mode = SELECT;
 			} else if (coord_name == SET) {
 				//Write_LCD_Buffer((char*)"    Brush Moving    ", LCD_ROW_SIZE, ROW_4);
-				LCD_SendCommand(LCD_ADDR, ROW_4);
+				//LCD_SendCommand(LCD_ADDR, ROW_4);
 				if (Get_Direction_and_Diff() == 1)
 				{
-					LCD_SendString(LCD_ADDR, "                    ");
+					//LCD_SendString(LCD_ADDR, "                    "); //TODO
+					queue_var = SPACE_4_ROW_CMD;
+					xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
 					mode = CHECK_PEDAL;
+					//send queue 35
 
 				} else {
-					LCD_SendString(LCD_ADDR, "    Brush Moving    ");
+					//LCD_SendString(LCD_ADDR, "    Brush Moving    ");	//TODO
+					queue_var = BRUSH_MOVING_CMD;
+					xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
+					//send queue 35
 					//Get_Direction_and_Diff();
 					Lock_Handle();
 					//Unlocks brush to move it
@@ -957,6 +1171,7 @@ void Collects_Digits(int8_t coord_name)
 					HAL_DAC_Start(&hdac, DAC_CHANNEL_1);
 					//Goes to Brush Move mode
 					mode = BRUSH_MOVE;
+					//send queue 21
 				}
 			}
 		}
@@ -1006,9 +1221,15 @@ void Check_Pressed_Key()
 
 		if (data == '*') {
 			Reset_LCD_Pointers();
-			Write_LCD_Buffer((char*)"00000", COORD_SIZE, S_COORD_POS);
-			Write_LCD_Buffer((char*)"     Edit Mode      ", LCD_ROW_SIZE, ROW_4);
+			//Write_LCD_Buffer((char*)"00000", COORD_SIZE, S_COORD_POS);
+			//Write_LCD_Buffer((char*)"     Edit Mode      ", LCD_ROW_SIZE, ROW_4);
+			queue_var = ZERO_S_COORD_CMD;
+			xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
+			queue_var = EDIT_MODE_CMD;
+			xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
+			//send queue 22
 			memset(coord_array, '0', COORD_SIZE);
+			temp_coord = set_coord;
 			set_coord = 0;
 			coord_size = 0;
 			//coord_size = Get_Coord_Size(coord_array, set_coord);
@@ -1017,18 +1238,34 @@ void Check_Pressed_Key()
 			mode = EDIT;
 
 		} else if (data == '#') {
-			Reset_LCD_Pointers();
-			Write_LCD_Buffer((char*)"                    ", LCD_ROW_SIZE, ROW_4);
+			//Reset_LCD_Pointers();
+			//Write_LCD_Buffer((char*)"                    ", LCD_ROW_SIZE, ROW_4);
+			queue_var = SPACE_4_ROW_CMD;
+			xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
+			//send queue 23
 			//Goes pedal checking mode
 			mode = CHECK_PEDAL;
 
 		} else if (data == 'C') {
-			Reset_LCD_Pointers();
-			Write_LCD_Buffer((char*)"                    ", LCD_ROW_SIZE, ROW_2);
-			Write_LCD_Buffer((char*)"    Callibration    ", LCD_ROW_SIZE, ROW_3);
-			Write_LCD_Buffer((char*)"                    ", LCD_ROW_SIZE, ROW_4);
+			//Reset_LCD_Pointers();
+			//Write_LCD_Buffer((char*)"00000", COORD_SIZE, R_COORD_POS);
+			//Write_LCD_Buffer((char*)"                    ", LCD_ROW_SIZE, ROW_2);
+			//Write_LCD_Buffer((char*)"    Callibration    ", LCD_ROW_SIZE, ROW_3);
+			//Write_LCD_Buffer((char*)"                    ", LCD_ROW_SIZE, ROW_4);
+			queue_var = ZERO_R_COORD_CMD;
+			xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
+			queue_var = SPACE_2_ROW_CMD;
+			xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
+			queue_var = CALLIBRATION_CMD;
+			xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
+			queue_var = SPACE_4_ROW_CMD;
+			xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
+			//send queue 24
 			memset(coord_array, '0', COORD_SIZE);
-			coord_size = Get_Coord_Size(coord_array, real_coord);
+			//coord_size = Get_Coord_Size(coord_array, real_coord);
+			temp_coord = real_coord;
+			real_coord = 0;
+			coord_size = 0;
 			number_accept_count = 0;
 			//Goes callibration mode
 			mode = CALLIBRATION;
@@ -1172,7 +1409,7 @@ void Print_Current_Coord()
 	if (print_real_coord_time == TIMEOUT_PRINT_REAL) {
 		print_real_coord_time = 0;
 		real_coord = (double)encoder_value * ONE_ROTATION_VAL / ONE_ROTATION_TICK;
-		Reset_LCD_Pointers();
+		//Reset_LCD_Pointers();
 		Print_Coord(real_coord, REAL);
 	}
 
@@ -1192,179 +1429,135 @@ int32_t encoder1 = 0;
 int32_t encoder2 = 0;
 int32_t encoder3 = 0;
 
+uint8_t counter = 0;
+
+void Ramp_Down(uint16_t* current_speed, uint16_t max_speed, uint16_t min_speed, uint8_t avg)
+{
+	if (abs(encoder_value - previous_encoder_value) >= 100)
+	{
+		counter++;
+		*current_speed = *current_speed - ((max_speed - min_speed) / avg);
+
+		if (*current_speed < min_speed)
+		{
+			*current_speed = min_speed;
+		}
+		previous_encoder_value = encoder_value;
+	}
+}
+
+uint8_t Get_Status()
+{
+	if (HAL_GPIO_ReadPin(Power_In_GPIO_Port, Power_In_Pin) == 0)
+	{
+		Save_Coord(encoder_value);
+	}
+	Print_Current_Coord();	//print current real coord
+	if ((encoder_value >= HARD_LIMIT_UP_IN_TICK) || (encoder_value <= LIMIT_DOWN_IN_TICK))
+	{
+		arrange_out = 1;
+		return 1;
+	}
+	return 0;
+}
+
 void Move_Brush()
 {
-	uint8_t ramp = 0;
-	uint8_t old_ramp = 0;
-
 	print_real_coord_time = 0;
 	is_move = 0;
-	timeout_for_ramp = 0;
-	time_for_change_ramp = 0;
+	arrange_out = 0;
 
 	if (direction == FORWARD) //tesoghakan dashtic hervanum e ays depqum
 	{
-
-		if (is_min_speed == 1)
+		if (is_min_speed == 0)
 		{
-			speed = 1400;
-		} else {
-			speed = 2200;
-		}
-		while (encoder_value < (set_tick + GO_OVER_IN_TICK))
-		{
-			//if there is no power, save coordinate
-			if (HAL_GPIO_ReadPin(Power_In_GPIO_Port, Power_In_Pin) == 0)
-			{
-				Save_Coord(encoder_value);
-			}
-			if ((encoder_value >= HARD_LIMIT_UP_IN_TICK) || (encoder_value <= LIMIT_DOWN_IN_TICK))
-			{
-				arrange_out = 1;
-				break;
-			}
-
-			if (is_min_speed == 0)
-			{
-				is_move = 1;
-				if (encoder_value < set_tick)
-				{
-					ramp = RAMP_UP;
-				} else
-				{
-					ramp = RAMP_DOWN;
-				}
-
-				if ((ramp != old_ramp) && (ramp == RAMP_DOWN))
-				{
-					timeout_for_ramp = 0;
-					time_for_change_ramp = 0;
-					speed = 1600;
-				}
-				old_ramp = ramp;
-
-				//if ((timeout_for_ramp < INTERVAL_FOR_RAMP) && (time_for_change_ramp == TIME_FOR_CHANGE_RAMP))
-				//{
-				//	time_for_change_ramp = 0;
-				//	Change_Speed(&speed, ramp);
-				//}
-			}
+			speed = MAX_SPEED;
 			Set_Inverter(FORWARD, speed);
-			Print_Current_Coord();	//print current real coord
-		}
 
-		Set_Inverter(STOP, 0);	//TODO	speed should be 0???
-		speed = 1400;
-		if (arrange_out == 0)
-		{
-			while(encoder_value > (set_tick+DELTA))
+			while(encoder_value < set_tick)
 			{
-				//if there is no power, save coordinate
-				if (HAL_GPIO_ReadPin(Power_In_GPIO_Port, Power_In_Pin) == 0)
+				if (Get_Status() == 1) break;
+			}
+
+			if (arrange_out == 0)
+			{
+				previous_encoder_value = encoder_value;
+
+				while(encoder_value < (set_tick + EXTRA_COORD))
 				{
-					Save_Coord(encoder_value);
+					Ramp_Down(&speed, MAX_SPEED, MID_SPEED, AVG_COUNT);
+					if (Get_Status() == 1) break;
 				}
-				if ((encoder_value >= HARD_LIMIT_UP_IN_TICK) || (encoder_value <= LIMIT_DOWN_IN_TICK))
-				{
-					break;
-				}
+			}
+
+			Set_Inverter(STOP, 0);
+
+			if (arrange_out == 0)
+			{
 				Set_Inverter(BACK, speed);
-				Print_Current_Coord();
+
+				previous_encoder_value = encoder_value;
+
+				while(encoder_value > (set_tick + DELTA))
+				{
+					Ramp_Down(&speed, MID_SPEED, MIN_SPEED, AVG_COUNT);
+					if (Get_Status() == 1) break;
+				}
+			}
+		} else {
+			speed = MIN_SPEED;
+			Set_Inverter(FORWARD, speed);
+
+			while(encoder_value < (set_tick + EXTRA_COORD))
+			{
+				if (Get_Status() == 1) break;
+			}
+
+			Set_Inverter(STOP, 0);
+
+			if (arrange_out == 0)
+			{
+				Set_Inverter(BACK, speed);
+
+				while(encoder_value > (set_tick + DELTA))
+				{
+					if (Get_Status() == 1) break;
+				}
 			}
 		}
-
-
-		/*while (encoder_value < set_tick)
-		{
-			//if there is no power, save coordinate
-			if (HAL_GPIO_ReadPin(Power_In_GPIO_Port, Power_In_Pin) == 0)
-			{
-				Save_Coord(encoder_value);
-			}
-
-			if ((encoder_value >= HARD_LIMIT_UP_IN_TICK) || (encoder_value <= LIMIT_DOWN_IN_TICK))
-			{
-				break;
-			}
-
-			if (is_min_speed == 0)
-			{
-				is_move = 1;
-				if (encoder_value < (set_tick - ENC_VAL_FOR_RAMP_DOWN))
-				{
-					ramp = RAMP_UP;
-				} else
-				{
-					ramp = RAMP_DOWN;
-				}
-
-				if ((ramp != old_ramp) && (ramp == RAMP_DOWN))
-				{
-					timeout_for_ramp = 0;
-					time_for_change_ramp = 0;
-				}
-				old_ramp = ramp;
-
-				if ((timeout_for_ramp < INTERVAL_FOR_RAMP) && (time_for_change_ramp == TIME_FOR_CHANGE_RAMP))
-				{
-					time_for_change_ramp = 0;
-					Change_Speed(&speed, ramp);
-				}
-			}
-			//TODO
-			Set_Inverter(FORWARD, speed);
-			Print_Current_Coord();
-		}*/
-
-
-
 	} else if (direction == BACK)
 	{
-		speed = 2200;
-		if (is_min_speed == 1)
+		if (is_min_speed == 0)
 		{
-			speed = 1400;
-		}
-		while (encoder_value > (set_tick+DELTA))
-		{
-			//if there is no power, save coordinate
-			if (HAL_GPIO_ReadPin(Power_In_GPIO_Port, Power_In_Pin) == 0)
-			{
-				Save_Coord(encoder_value);
-			}
-			if ((encoder_value >= HARD_LIMIT_UP_IN_TICK) || (encoder_value <= LIMIT_DOWN_IN_TICK))
-			{
-				break;
-			}
-
-			if (is_min_speed == 0)
-			{
-				is_move = 1;
-				if (encoder_value > (set_tick + TICK_FOR_RAMP_DOWN))
-				{
-					ramp = RAMP_UP;
-				} else
-				{
-					ramp = RAMP_DOWN;
-				}
-
-				if ((ramp != old_ramp) && (ramp == RAMP_DOWN))
-				{
-					timeout_for_ramp = 0;
-					time_for_change_ramp = 0;
-					speed = 1400;
-				}
-				old_ramp = ramp;
-
-				//if ((timeout_for_ramp < INTERVAL_FOR_RAMP) && (time_for_change_ramp == TIME_FOR_CHANGE_RAMP))
-				//{
-				//	time_for_change_ramp = 0;
-					//Change_Speed(&speed, ramp);
-				//}
-			}
-			//TODO save coord
+			speed = MAX_SPEED;
 			Set_Inverter(BACK, speed);
-			Print_Current_Coord();
+
+			while(encoder_value > (set_tick + EXTRA_COORD))
+			{
+				if (Get_Status() == 1) break;
+			}
+
+			previous_encoder_value = encoder_value;
+
+			while(encoder_value > (set_tick + EXTRA_COORD - 200))
+			{
+				Ramp_Down(&speed, MAX_SPEED, MID_SPEED, 2);
+				if (Get_Status() == 1) break;
+			}
+
+			previous_encoder_value = encoder_value;
+
+			while(encoder_value > set_tick + DELTA)
+			{
+				Ramp_Down(&speed, MID_SPEED, MIN_SPEED, 3);
+				if (Get_Status() == 1) break;
+			}
+		} else {
+			speed = MIN_SPEED;
+			while(encoder_value > (set_tick + DELTA))
+			{
+				if (Get_Status() == 1) break;
+			}
 		}
 	}
 
@@ -1385,7 +1578,7 @@ void Move_Brush()
 	timeout_for_ramp = 0;
 	time_for_change_ramp = 0;
 	arrange_out = 0;
-	Reset_LCD_Pointers();
+	//Reset_LCD_Pointers();
 
 	//encoder2 = encoder_value;
 
@@ -1400,7 +1593,10 @@ void Move_Brush()
 	Save_Coord(encoder_value);
 	//Prints real coordinate to LCD
 	Print_Coord(real_coord, REAL);
-	Write_LCD_Buffer((char*)"                    ", LCD_ROW_SIZE, ROW_4);
+	//Write_LCD_Buffer((char*)"                    ", LCD_ROW_SIZE, ROW_4);
+	queue_var = SPACE_4_ROW_CMD;
+	xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
+	//send queue 25
 	Unlock_Handle();
 	//encoder_value = 0;
 	//Goes to CHECK_PEDAL mode
@@ -1565,8 +1761,11 @@ void Check_Pedal()
 						Cutting_On();
 						temp = 1;
 						if (old_temp != temp) {
-							Reset_LCD_Pointers();
-							Write_LCD_Buffer((char*)"      Cutting       ", LCD_ROW_SIZE, ROW_4);
+							//Reset_LCD_Pointers();
+							//Write_LCD_Buffer((char*)"      Cutting       ", LCD_ROW_SIZE, ROW_4);
+							queue_var = CUTTING_CMD;
+							xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
+							//send queue 26
 						}
 
 					} else {
@@ -1574,8 +1773,11 @@ void Check_Pedal()
 						cut_is_done = 1;
 						temp = 2;
 						if (old_temp != temp) {
-							Reset_LCD_Pointers();
-							Write_LCD_Buffer((char*)"    Cut is done     ", LCD_ROW_SIZE, ROW_4);
+							//Reset_LCD_Pointers();
+							//Write_LCD_Buffer((char*)"    Cut is done     ", LCD_ROW_SIZE, ROW_4);
+							queue_var = CUT_IS_DONE_CMD;
+							xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
+							//send queue 27
 						}
 					}
 				}
@@ -1584,8 +1786,11 @@ void Check_Pedal()
 				delay_for_cutting = 0;
 				temp = 3;
 				if (old_temp != temp) {
-					Reset_LCD_Pointers();
-					Write_LCD_Buffer((char*)"  Allowed cutting   ", LCD_ROW_SIZE, ROW_4);
+					//Reset_LCD_Pointers();
+					//Write_LCD_Buffer((char*)"  Allowed cutting   ", LCD_ROW_SIZE, ROW_4);
+					queue_var = ALLOWED_CUTTING_CMD;
+					xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
+					//send queue 28
 				}
 			}
 		}
@@ -1597,7 +1802,10 @@ void Check_Pedal()
 			delay_for_cutting = 0;
 			Cutting_Button_Off();
 			Air_Out_On();
-			Write_LCD_Buffer((char*)"                    ", LCD_ROW_SIZE, ROW_4);
+			//Write_LCD_Buffer((char*)"                    ", LCD_ROW_SIZE, ROW_4);
+			queue_var = SPACE_4_ROW_CMD;
+			xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
+			//send queue 29
 			Unlock_Handle();
 		}
 		if (keypad_timeout == KEYPAD_TIMEOUT) {
@@ -1610,8 +1818,11 @@ void Check_Pedal()
 			//If pressed 'C' key goes to the CALLIBRATION mode
 			if (data == '*') {
 				mode = SELECT;
-				Reset_LCD_Pointers();
-				Write_LCD_Buffer((char*)" *-Edit #-Cut C-Cal ", LCD_ROW_SIZE, ROW_4);
+				//Reset_LCD_Pointers();
+				//Write_LCD_Buffer((char*)" *-Edit #-Cut C-Cal ", LCD_ROW_SIZE, ROW_4);
+				queue_var = MAIN_MENU_CMD;
+				xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
+				//send queue 30
 			}
 		}
 		if (input_state.hand_catch_is_pressed == 1)
@@ -1620,7 +1831,10 @@ void Check_Pedal()
 			//initial_coord = real_coord;
 			//encoder_value = 0;
 			Brush_Unlock();
-			Write_LCD_Buffer((char*)"   Hand catching    ", LCD_ROW_SIZE, ROW_4);
+			//Write_LCD_Buffer((char*)"   Hand catching    ", LCD_ROW_SIZE, ROW_4);
+			queue_var = HAND_CATCHING_CMD;
+			xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
+			//send queue 31
 			mode = HAND_CATCH;
 
 		}
@@ -1631,16 +1845,19 @@ void Check_Pedal()
 ///////////////////////////////////////////////////////////////////////////////
 //							HAND CATCH										 //
 ///////////////////////////////////////////////////////////////////////////////
+char temp_buf_enc[7];
+
 void Print_Coord(double r_coord, uint8_t coord_name)
 {
-	char temp_buf[10];
-	char temp_buf_enc[7];
-	sprintf(temp_buf, "%6.1f", r_coord);
+	//char temp_buf[10];
+	memset(temp_buf_enc, 0x00, 7);
+
+	sprintf(coord_array, "%6.1f", r_coord);
 	sprintf(temp_buf_enc, "%ld", encoder_value);
 
-	for (int i = 0; i < sizeof(temp_buf); ++i) {
-	  if (temp_buf[i] == 0x20) {
-		  temp_buf[i] = '0';
+	for (int i = 0; i < sizeof(coord_array); ++i) {
+	  if (coord_array[i] == 0x20) {
+		  coord_array[i] = '0';
 	  }
 	}
 
@@ -1649,15 +1866,28 @@ void Print_Coord(double r_coord, uint8_t coord_name)
 		  temp_buf_enc[i] = 0x20;
 	  }
 	}
+	temp_buf_enc[7] = '\0';
 
 	Reset_LCD_Pointers();
 	if (coord_name == REAL) {
-		Write_LCD_Buffer((char*)"Real  ", sizeof("Real  "), ROW_1);
-		Write_LCD_Buffer(temp_buf, COORD_SIZE_WITH_POINT, R_COORD_POS);
-		Write_LCD_Buffer(temp_buf_enc, 7, ROW_3);
+		queue_var = REAL_CMD;
+		xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
+		queue_var = REAL_COORD_CMD;
+		xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
+		queue_var = ENCODER_VAL_CMD;
+		xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
+		//Write_LCD_Buffer((char*)"Real  ", sizeof("Real  "), ROW_1);
+		//Write_LCD_Buffer(temp_buf, COORD_SIZE_WITH_POINT, R_COORD_POS);
+		//Write_LCD_Buffer(temp_buf_enc, 7, ROW_3);
+		//send queue 31
 	} else {
-		Write_LCD_Buffer((char*)"Set   ", sizeof("Set   "), ROW_2);
-		Write_LCD_Buffer(temp_buf, COORD_SIZE_WITH_POINT, S_COORD_POS);
+		queue_var = SET_CMD;
+		xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
+		queue_var = SET_COORD_CMD;
+		xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
+		//Write_LCD_Buffer((char*)"Set   ", sizeof("Set   "), ROW_2);
+		//Write_LCD_Buffer(temp_buf, COORD_SIZE_WITH_POINT, S_COORD_POS);
+		//send queue 32
 	}
 }
 
@@ -1675,7 +1905,7 @@ void Check_Hand_Catch()
 		if (print_real_coord_time == TIMEOUT_PRINT_REAL) {
 			print_real_coord_time = 0;
 			real_coord = (double)encoder_value * ONE_ROTATION_VAL / ONE_ROTATION_TICK;
-			Reset_LCD_Pointers();
+			//Reset_LCD_Pointers();
 			Print_Coord(real_coord, REAL);
 		}
 	} else {
@@ -1690,7 +1920,10 @@ void Check_Hand_Catch()
 			Save_Coord(encoder_value);
 			//Resets encoder value
 			//encoder_value = 0;
-			Write_LCD_Buffer((char*)"                    ", LCD_ROW_SIZE, ROW_4);
+			//Write_LCD_Buffer((char*)"                    ", LCD_ROW_SIZE, ROW_4);
+			queue_var = SPACE_4_ROW_CMD;
+			xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
+			//send queue 33
 			mode = CHECK_PEDAL;
 		}
 	}
