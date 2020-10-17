@@ -43,6 +43,7 @@
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
 extern char temp_buf_enc[7];
+extern char current_coord[6];
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
@@ -282,7 +283,16 @@ void StartTask02(void *argument)
 			LCD_SendCommand(LCD_ADDR, ROW_3);
 			Write_LCD_Buffer(temp_buf_enc, 7, ROW_3);
 			//LCD_SendString(LCD_ADDR, "    Brush Moving    ");
+
+		  } else if (val == CURRENT_SET_COORD_CMD) {
+			  LCD_SendCommand(LCD_ADDR, S_COORD_POS);
+			  Write_LCD_Buffer(current_coord, COORD_SIZE_WITH_POINT, S_COORD_POS);
+
+		  }  else if (val == CURRENT_REAL_COORD_CMD) {
+			  LCD_SendCommand(LCD_ADDR, R_COORD_POS);
+			  Write_LCD_Buffer(current_coord, COORD_SIZE_WITH_POINT, R_COORD_POS);
 		  }
+
 	  }
 	  osDelay(1);
   }

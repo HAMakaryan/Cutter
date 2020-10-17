@@ -45,7 +45,7 @@
 #define ERROR 	1
 #define SINGLE	2
 
-#define COORD_SIZE				6
+#define COORD_SIZE				5
 #define COORD_SIZE_WITH_POINT	COORD_SIZE+1
 
 #define PRESSED		1
@@ -125,6 +125,8 @@ typedef enum {
 	SET_CMD,
 	REAL_COORD_CMD,
 	SET_COORD_CMD,
+	CURRENT_SET_COORD_CMD,
+	CURRENT_REAL_COORD_CMD,
 	ZERO_S_COORD_CMD,
 	ZERO_R_COORD_CMD,
 	MIN_2_ROW_CMD,
@@ -171,6 +173,7 @@ void Print_Coord(double r_coord, uint8_t coord_name);
 void Print_Current_Coord();
 void state_machine(void);
 void Main_Task(void);
+void Write_LCD_Buffer(char* buf, uint8_t size, uint8_t cursor);
 
 char Convert_Key_to_Char(uint8_t key);
 uint8_t Get_Coord_Size(char* coord_arr, double coord);
@@ -180,6 +183,7 @@ uint8_t Read_Hand_Catch_Input(void);
 uint16_t Read_Encoder(void);
 uint32_t Read_Coord(void);
 double Create_Number(char* buf);
+
 
 typedef struct
 {

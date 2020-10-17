@@ -774,7 +774,7 @@ void Write_LCD_Buffer(char* buf, uint8_t size, uint8_t cursor)
 			}
 		}
 
-		LCD_SendString(LCD_ADDR, lcd_buf);
+		LCD_SendString(LCD_ADDR, (char*)lcd_buf);
 	} else {
 		LCD_SendString(LCD_ADDR, buf);
 	}
@@ -807,13 +807,13 @@ uint8_t Get_Direction_and_Diff()
 
 	//set_tick = set_tick + 30;
 
-	if ((encoder_value > HARD_LIMIT_UP_IN_TICK) || (encoder_value < LIMIT_DOWN_IN_TICK)) {
-		return 1;
-	}
+	//if ((encoder_value > HARD_LIMIT_UP_IN_TICK) || (encoder_value < LIMIT_DOWN_IN_TICK)) {
+	//	return 1;
+	//}
 
-	if ((set_tick > HARD_LIMIT_UP_IN_TICK) || (set_tick < LIMIT_DOWN_IN_TICK)) {
-		return 1;
-	}
+	//if ((set_tick > HARD_LIMIT_UP_IN_TICK) || (set_tick < LIMIT_DOWN_IN_TICK)) {
+	//	return 1;
+	//}
 
 	if (set_tick == encoder_value)
 	{
@@ -1431,9 +1431,9 @@ int32_t encoder3 = 0;
 
 uint8_t counter = 0;
 
-void Ramp_Down(uint16_t* current_speed, uint16_t max_speed, uint16_t min_speed, uint8_t avg)
+void Ramp_Down(uint16_t* current_speed, uint16_t max_speed, uint16_t min_speed, uint8_t avg, uint8_t diff)
 {
-	if (abs(encoder_value - previous_encoder_value) >= 100)
+	if (abs(encoder_value - previous_encoder_value) >= diff)
 	{
 		counter++;
 		*current_speed = *current_speed - ((max_speed - min_speed) / avg);
@@ -1443,18 +1443,22 @@ void Ramp_Down(uint16_t* current_speed, uint16_t max_speed, uint16_t min_speed, 
 			*current_speed = min_speed;
 		}
 		previous_encoder_value = encoder_value;
+		HAL_DAC_SetValue(&hdac, DAC_CHANNEL_1, DAC_ALIGN_12B_R, *current_speed);
 	}
 }
 
-uint8_t Get_Status()
+uint8_t Get_Status(uint8_t dir)
 {
 	if (HAL_GPIO_ReadPin(Power_In_GPIO_Port, Power_In_Pin) == 0)
 	{
 		Save_Coord(encoder_value);
 	}
 	Print_Current_Coord();	//print current real coord
-	if ((encoder_value >= HARD_LIMIT_UP_IN_TICK) || (encoder_value <= LIMIT_DOWN_IN_TICK))
+	if ((dir == FORWARD) && (encoder_value >= HARD_LIMIT_UP_IN_TICK))
 	{
+		arrange_out = 1;
+		return 1;
+	} else if ((dir == BACK) && (encoder_value <= LIMIT_DOWN_IN_TICK)) {
 		arrange_out = 1;
 		return 1;
 	}
@@ -1476,7 +1480,7 @@ void Move_Brush()
 
 			while(encoder_value < set_tick)
 			{
-				if (Get_Status() == 1) break;
+				if (Get_Status(FORWARD) == 1) break;
 			}
 
 			if (arrange_out == 0)
@@ -1485,12 +1489,13 @@ void Move_Brush()
 
 				while(encoder_value < (set_tick + EXTRA_COORD))
 				{
-					Ramp_Down(&speed, MAX_SPEED, MID_SPEED, AVG_COUNT);
-					if (Get_Status() == 1) break;
+					Ramp_Down(&speed, MAX_SPEED, MID_SPEED, AVG_COUNT, 100);
+					if (Get_Status(FORWARD) == 1) break;
 				}
+				speed = MID_SPEED;
+				HAL_DAC_SetValue(&hdac, DAC_CHANNEL_1, DAC_ALIGN_12B_R, speed);
+				Set_Inverter(STOP, 0);
 			}
-
-			Set_Inverter(STOP, 0);
 
 			if (arrange_out == 0)
 			{
@@ -1500,17 +1505,21 @@ void Move_Brush()
 
 				while(encoder_value > (set_tick + DELTA))
 				{
-					Ramp_Down(&speed, MID_SPEED, MIN_SPEED, AVG_COUNT);
-					if (Get_Status() == 1) break;
+					Ramp_Down(&speed, MID_SPEED, MIN_SPEED, AVG_COUNT, 100);
+					if (Get_Status(BACK) == 1) break;
 				}
+				speed = MIN_SPEED;
+				HAL_DAC_SetValue(&hdac, DAC_CHANNEL_1, DAC_ALIGN_12B_R, speed);
 			}
+
 		} else {
+
 			speed = MIN_SPEED;
 			Set_Inverter(FORWARD, speed);
 
 			while(encoder_value < (set_tick + EXTRA_COORD))
 			{
-				if (Get_Status() == 1) break;
+				if (Get_Status(FORWARD) == 1) break;
 			}
 
 			Set_Inverter(STOP, 0);
@@ -1521,7 +1530,7 @@ void Move_Brush()
 
 				while(encoder_value > (set_tick + DELTA))
 				{
-					if (Get_Status() == 1) break;
+					if (Get_Status(BACK) == 1) break;
 				}
 			}
 		}
@@ -1534,29 +1543,40 @@ void Move_Brush()
 
 			while(encoder_value > (set_tick + EXTRA_COORD))
 			{
-				if (Get_Status() == 1) break;
+				if (Get_Status(BACK) == 1) break;
 			}
 
-			previous_encoder_value = encoder_value;
-
-			while(encoder_value > (set_tick + EXTRA_COORD - 200))
+			if (arrange_out == 0)
 			{
-				Ramp_Down(&speed, MAX_SPEED, MID_SPEED, 2);
-				if (Get_Status() == 1) break;
+				previous_encoder_value = encoder_value;
+
+				while(encoder_value > (set_tick + EXTRA_COORD - 200))
+				{
+					Ramp_Down(&speed, MAX_SPEED, MID_SPEED, AVG_COUNT, 40);
+					if (Get_Status(BACK) == 1) break;
+				}
+				speed = MID_SPEED;
+				HAL_DAC_SetValue(&hdac, DAC_CHANNEL_1, DAC_ALIGN_12B_R, speed);
 			}
 
-			previous_encoder_value = encoder_value;
-
-			while(encoder_value > set_tick + DELTA)
+			if (arrange_out == 0)
 			{
-				Ramp_Down(&speed, MID_SPEED, MIN_SPEED, 3);
-				if (Get_Status() == 1) break;
+				previous_encoder_value = encoder_value;
+
+				while(encoder_value > (set_tick + DELTA))
+				{
+					Ramp_Down(&speed, MID_SPEED, MIN_SPEED, AVG_COUNT, 60);
+					if (Get_Status(BACK) == 1) break;
+				}
+				speed = MIN_SPEED;
+				HAL_DAC_SetValue(&hdac, DAC_CHANNEL_1, DAC_ALIGN_12B_R, speed);
 			}
+
 		} else {
 			speed = MIN_SPEED;
 			while(encoder_value > (set_tick + DELTA))
 			{
-				if (Get_Status() == 1) break;
+				if (Get_Status(BACK) == 1) break;
 			}
 		}
 	}
@@ -1846,18 +1866,18 @@ void Check_Pedal()
 //							HAND CATCH										 //
 ///////////////////////////////////////////////////////////////////////////////
 char temp_buf_enc[7];
+char current_coord[6];
 
 void Print_Coord(double r_coord, uint8_t coord_name)
 {
-	//char temp_buf[10];
 	memset(temp_buf_enc, 0x00, 7);
 
-	sprintf(coord_array, "%6.1f", r_coord);
+	sprintf(current_coord, "%6.1f", r_coord);
 	sprintf(temp_buf_enc, "%ld", encoder_value);
 
-	for (int i = 0; i < sizeof(coord_array); ++i) {
-	  if (coord_array[i] == 0x20) {
-		  coord_array[i] = '0';
+	for (int i = 0; i < sizeof(current_coord); ++i) {
+	  if (current_coord[i] == 0x20) {
+		  current_coord[i] = '0';
 	  }
 	}
 
@@ -1867,12 +1887,13 @@ void Print_Coord(double r_coord, uint8_t coord_name)
 	  }
 	}
 	temp_buf_enc[7] = '\0';
+	current_coord[6] = '\0';
 
 	Reset_LCD_Pointers();
 	if (coord_name == REAL) {
 		queue_var = REAL_CMD;
 		xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
-		queue_var = REAL_COORD_CMD;
+		queue_var = CURRENT_REAL_COORD_CMD;
 		xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
 		queue_var = ENCODER_VAL_CMD;
 		xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
@@ -1883,7 +1904,7 @@ void Print_Coord(double r_coord, uint8_t coord_name)
 	} else {
 		queue_var = SET_CMD;
 		xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
-		queue_var = SET_COORD_CMD;
+		queue_var = CURRENT_SET_COORD_CMD;
 		xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
 		//Write_LCD_Buffer((char*)"Set   ", sizeof("Set   "), ROW_2);
 		//Write_LCD_Buffer(temp_buf, COORD_SIZE_WITH_POINT, S_COORD_POS);
@@ -1938,10 +1959,10 @@ uint8_t data = 0;
 void Main_Task()
 {
 	#ifndef TEST
-		if (lcd_timeout == LCD_TIMEOUT) {
-			lcd_timeout = 0;
-			LCD_Write(LCD_ADDR);
-		}
+		//if (lcd_timeout == LCD_TIMEOUT) {
+		//	lcd_timeout = 0;
+		//	LCD_Write(LCD_ADDR);
+		//}
 		state_machine();
 	#else
 		if (keypad_timeout == KEYPAD_TIMEOUT) {
