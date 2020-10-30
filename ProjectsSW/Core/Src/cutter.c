@@ -1433,7 +1433,7 @@ uint8_t counter = 0;
 
 void Ramp_Down(uint16_t* current_speed, uint16_t max_speed, uint16_t min_speed, uint8_t avg, uint8_t diff)
 {
-	if (abs(encoder_value - previous_encoder_value) >= diff)
+	if (abs(encoder_value - previous_encoder_value) >= (diff-1))
 	{
 		counter++;
 		*current_speed = *current_speed - ((max_speed - min_speed) / avg);
