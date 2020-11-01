@@ -803,7 +803,7 @@ uint32_t set_tick = 0;
 
 uint8_t Get_Direction_and_Diff()
 {
-	set_tick = (double)set_coord * ONE_ROTATION_TICK / ONE_ROTATION_VAL;
+	set_tick = roundf((double)set_coord * ONE_ROTATION_TICK / ONE_ROTATION_VAL);
 
 	//set_tick = set_tick + 30;
 
@@ -1485,31 +1485,51 @@ void Move_Brush()
 
 			if (arrange_out == 0)
 			{
-				previous_encoder_value = encoder_value;
+				speed = MID_SPEED;
+				Set_Inverter(FORWARD, speed);
+				//previous_encoder_value = encoder_value;
 
 				while(encoder_value < (set_tick + EXTRA_COORD))
 				{
-					Ramp_Down(&speed, MAX_SPEED, MID_SPEED, AVG_COUNT, 100);
+					//Ramp_Down(&speed, MAX_SPEED, MID_SPEED, AVG_COUNT, 100);
 					if (Get_Status(FORWARD) == 1) break;
 				}
-				speed = MID_SPEED;
-				HAL_DAC_SetValue(&hdac, DAC_CHANNEL_1, DAC_ALIGN_12B_R, speed);
+				//speed = MID_SPEED;
+				//HAL_DAC_SetValue(&hdac, DAC_CHANNEL_1, DAC_ALIGN_12B_R, speed);
 				Set_Inverter(STOP, 0);
 			}
 
 			if (arrange_out == 0)
 			{
+				speed = MID_SPEED;
+				Set_Inverter(BACK, speed);
+				//previous_encoder_value = encoder_value;
+
+				uint16_t x = EXTRA_COORD * 0.4;
+				while(encoder_value > (set_tick + x))
+				{
+					//Ramp_Down(&speed, MAX_SPEED, MID_SPEED, AVG_COUNT, 100);
+					if (Get_Status(FORWARD) == 1) break;
+				}
+				//speed = MID_SPEED;
+				//HAL_DAC_SetValue(&hdac, DAC_CHANNEL_1, DAC_ALIGN_12B_R, speed);
+				//Set_Inverter(STOP, 0);
+			}
+
+			if (arrange_out == 0)
+			{
+				speed = MIN_SPEED;
 				Set_Inverter(BACK, speed);
 
-				previous_encoder_value = encoder_value;
+				//previous_encoder_value = encoder_value;
 
 				while(encoder_value > (set_tick + DELTA))
 				{
-					Ramp_Down(&speed, MID_SPEED, MIN_SPEED, AVG_COUNT, 100);
+					//Ramp_Down(&speed, MID_SPEED, MIN_SPEED, AVG_COUNT, 100);
 					if (Get_Status(BACK) == 1) break;
 				}
-				speed = MIN_SPEED;
-				HAL_DAC_SetValue(&hdac, DAC_CHANNEL_1, DAC_ALIGN_12B_R, speed);
+				//speed = MIN_SPEED;
+				//HAL_DAC_SetValue(&hdac, DAC_CHANNEL_1, DAC_ALIGN_12B_R, speed);
 			}
 
 		} else {
@@ -1536,44 +1556,53 @@ void Move_Brush()
 		}
 	} else if (direction == BACK)
 	{
+		uint16_t x = abs((encoder_value - set_tick)) * 0.2;
+
 		if (is_min_speed == 0)
 		{
 			speed = MAX_SPEED;
 			Set_Inverter(BACK, speed);
 
-			while(encoder_value > (set_tick + EXTRA_COORD))
+			while((encoder_value > set_tick) && (encoder_value > (set_tick + x)))
 			{
 				if (Get_Status(BACK) == 1) break;
 			}
 
+			x = abs((encoder_value - set_tick)) * 0.2;
+
 			if (arrange_out == 0)
 			{
-				previous_encoder_value = encoder_value;
+				speed = MID_SPEED;
+				Set_Inverter(BACK, speed);
+				//previous_encoder_value = encoder_value;
 
-				while(encoder_value > (set_tick + EXTRA_COORD - 200))
+				while((encoder_value > set_tick) && (encoder_value > (set_tick + x)))
 				{
-					Ramp_Down(&speed, MAX_SPEED, MID_SPEED, AVG_COUNT, 40);
+					//Ramp_Down(&speed, MAX_SPEED, MID_SPEED, AVG_COUNT, 60);
 					if (Get_Status(BACK) == 1) break;
 				}
-				speed = MID_SPEED;
-				HAL_DAC_SetValue(&hdac, DAC_CHANNEL_1, DAC_ALIGN_12B_R, speed);
+				//speed = MID_SPEED;
+				//HAL_DAC_SetValue(&hdac, DAC_CHANNEL_1, DAC_ALIGN_12B_R, speed);
 			}
 
 			if (arrange_out == 0)
 			{
+				speed = MIN_SPEED;
+				Set_Inverter(BACK, speed);
 				previous_encoder_value = encoder_value;
 
 				while(encoder_value > (set_tick + DELTA))
 				{
-					Ramp_Down(&speed, MID_SPEED, MIN_SPEED, AVG_COUNT, 60);
+					//Ramp_Down(&speed, MID_SPEED, MIN_SPEED, AVG_COUNT, 100);
 					if (Get_Status(BACK) == 1) break;
 				}
-				speed = MIN_SPEED;
-				HAL_DAC_SetValue(&hdac, DAC_CHANNEL_1, DAC_ALIGN_12B_R, speed);
+				//speed = MIN_SPEED;
+				//HAL_DAC_SetValue(&hdac, DAC_CHANNEL_1, DAC_ALIGN_12B_R, speed);
 			}
 
 		} else {
 			speed = MIN_SPEED;
+			Set_Inverter(BACK, speed);
 			while(encoder_value > (set_tick + DELTA))
 			{
 				if (Get_Status(BACK) == 1) break;
@@ -1910,6 +1939,30 @@ void Print_Coord(double r_coord, uint8_t coord_name)
 		//Write_LCD_Buffer(temp_buf, COORD_SIZE_WITH_POINT, S_COORD_POS);
 		//send queue 32
 	}
+}
+
+uint8_t speed_buf[5];
+
+void Print_Speed(uint16_t speed)
+{
+	memset(speed_buf, 0x00, 5);
+
+	sprintf(speed_buf, "%d", speed);
+
+
+	for (int i = 0; i < sizeof(speed_buf); ++i) {
+	  if (speed_buf[i] == 0) {
+		  speed_buf[i] = 0x20;
+	  }
+	}
+	speed_buf[5] = '\0';
+
+	queue_var = SPEED_CMD;
+	xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
+	//Write_LCD_Buffer((char*)"Set   ", sizeof("Set   "), ROW_2);
+	//Write_LCD_Buffer(temp_buf, COORD_SIZE_WITH_POINT, S_COORD_POS);
+	//send queue 32
+
 }
 
 void Check_Hand_Catch()

@@ -135,8 +135,6 @@ int main(void)
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
 
-  //_temp = roundf(5.8);
-
   while (1)
   {
 

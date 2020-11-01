@@ -72,7 +72,7 @@
 #define RAMP_DOWN_VAL	20
 
 #define DELTA				0
-#define	ONE_ROTATION_VAL	(double)11.96	//mm		//11.962
+#define	ONE_ROTATION_VAL	(double)11.985	//mm		//11.962
 #define ONE_ROTATION_TICK	1000
 
 #define	MAX_DAC_VALUE				2200
@@ -90,7 +90,7 @@
 #define LIMIT_DOWN_IN_TICK				(uint32_t)(LIMIT_DOWN * ONE_ROTATION_TICK / ONE_ROTATION_VAL)
 
 //#define MIN_DISTANCE						30 //mm
-#define MIN_DISTANCE_IN_TICK				600
+#define MIN_DISTANCE_IN_TICK				900//600
 
 //#define TICK_FOR_RAMP_DOWN			600
 //#define INTERVAL_FOR_RAMP			3000	//3second
@@ -145,7 +145,9 @@ typedef enum {
 	ALLOWED_CUTTING_CMD,
 	HAND_CATCHING_CMD,
 	BRUSH_MOVING_CMD,
-	ENCODER_VAL_CMD
+	ENCODER_VAL_CMD,
+
+	SPEED_CMD
 
 } lcd_commands;
 
