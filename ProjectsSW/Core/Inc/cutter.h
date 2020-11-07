@@ -94,7 +94,7 @@
 #define HARD_LIMIT_UP_IN_TICK		(uint32_t)(HARD_LIMIT_UP * ONE_ROTATION_TICK / ONE_ROTATION_VAL)
 #define LIMIT_DOWN_IN_TICK			(uint32_t)(LIMIT_DOWN * ONE_ROTATION_TICK / ONE_ROTATION_VAL)
 
-#define MIN_DISTANCE_IN_TICK		600		//minimum taracutyun@, voric cacri depqum minimum aragutyamb e sharjvelu
+#define MIN_DISTANCE_IN_TICK		900		//minimum taracutyun@, voric cacri depqum minimum aragutyamb e sharjvelu
 
 
 

@@ -68,8 +68,6 @@ int32_t encoder_value 		= 0;
 int32_t previous_encoder_value 		= 0;
 extern double real_coord;
 
-uint16_t speed = MIN_SPEED;
-
 uint8_t arrange_out = 0;
 uint16_t timeout_for_ramp = 0;
 uint8_t is_move = 0;
@@ -635,10 +633,8 @@ uint8_t Get_Direction_and_Diff()
 	}
 
 	if (abs(tick_diff) < MIN_DISTANCE_IN_TICK) {
-		speed = MIN_SPEED;
 		is_min_speed = 1;
 	} else {
-		speed = 0;
 		is_min_speed = 0;
 	}
 	return 0;
@@ -1135,8 +1131,8 @@ uint8_t Get_Status(uint8_t dir)
 
 void Move_Brush()
 {
+	uint16_t speed = MIN_SPEED;
 	print_real_coord_time = 0;
-	is_move = 0;
 	arrange_out = 0;
 
 	if (direction == FORWARD) //tesoghakan dashtic hervanum e ays depqum
@@ -1161,18 +1157,6 @@ void Move_Brush()
 					if (Get_Status(FORWARD) == 1) break;
 				}
 				Set_Inverter(STOP, 0);
-			}
-
-			if (arrange_out == 0)
-			{
-				speed = MID_SPEED;
-				Set_Inverter(BACK, speed);
-
-				uint16_t x = EXTRA_COORD * FORWARD_COEFFICIENT;
-				while(encoder_value > (set_tick + x))
-				{
-					if (Get_Status(FORWARD) == 1) break;
-				}
 			}
 
 			if (arrange_out == 0)
@@ -1210,26 +1194,22 @@ void Move_Brush()
 		}
 	} else if (direction == BACK)
 	{
-		uint16_t x = abs((encoder_value - set_tick)) * BACK_COEFFICIENT_1;
-
 		if (is_min_speed == 0)
 		{
 			speed = MAX_SPEED;
 			Set_Inverter(BACK, speed);
 
-			while((encoder_value > set_tick) && (encoder_value > (set_tick + x)))
+			while(encoder_value > (set_tick + EXTRA_COORD + 300))
 			{
 				if (Get_Status(BACK) == 1) break;
 			}
-
-			x = abs((encoder_value - set_tick)) * BACK_COEFFICIENT_2;
 
 			if (arrange_out == 0)
 			{
 				speed = MID_SPEED;
 				Set_Inverter(BACK, speed);
 
-				while((encoder_value > set_tick) && (encoder_value > (set_tick + x)))
+				while(encoder_value > (set_tick + EXTRA_COORD))
 				{
 					if (Get_Status(BACK) == 1) break;
 				}
@@ -1239,7 +1219,6 @@ void Move_Brush()
 			{
 				speed = MIN_SPEED;
 				Set_Inverter(BACK, speed);
-				previous_encoder_value = encoder_value;
 
 				while(encoder_value > (set_tick + DELTA))
 				{
