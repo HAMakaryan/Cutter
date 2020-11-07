@@ -28,6 +28,8 @@
 /* USER CODE BEGIN Includes */
 #include "queue.h"
 #include "cutter.h"
+#include "stdio.h"
+#include "string.h"
 
 /* USER CODE END Includes */
 
@@ -44,11 +46,14 @@
 /* USER CODE BEGIN PM */
 extern char temp_buf_enc[7];
 extern char current_coord[6];
+extern int32_t encoder_value;
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
 extern char coord_array[COORD_SIZE];
+extern double real_coord;
+extern double set_coord;
 
 /* USER CODE END Variables */
 /* Definitions for defaultTask */
@@ -164,7 +169,6 @@ void StartTask02(void *argument)
 		  {
 			LCD_SendCommand(LCD_ADDR, ROW_4);
 			LCD_SendString(LCD_ADDR, (char*) " *-Edit #-Cut C-Cal ");
-			//Write_LCD_Buffer((char*) " *-Edit #-Cut C-Cal ", LCD_ROW_SIZE, ROW_4);
 
 		  } else if (val == REAL_COORD_CMD) {
 			LCD_SendCommand(LCD_ADDR, R_COORD_POS);
@@ -177,122 +181,140 @@ void StartTask02(void *argument)
 		  } else if (val == SPACE_FOR_MAX_MIN_1_ROW_CMD) {
 			LCD_SendCommand(LCD_ADDR, 0x8E);
 			LCD_SendString(LCD_ADDR, (char*) "   ");
-			//Write_LCD_Buffer((char*)"   ", 3, 0x8E);
 
 		  } else if (val == SPACE_FOR_MAX_MIN_2_ROW_CMD) {
 			LCD_SendCommand(LCD_ADDR, 0xCE);
 			LCD_SendString(LCD_ADDR, (char*) "   ");
-			//Write_LCD_Buffer((char*)"   ", 3, 0xCE);
 
 		  } else if (val == EDIT_MODE_CMD) {
 			LCD_SendCommand(LCD_ADDR, ROW_4);
 			LCD_SendString(LCD_ADDR, (char*) "     Edit Mode      ");
-			//Write_LCD_Buffer((char*)"     Edit Mode      ", LCD_ROW_SIZE, ROW_4);
 
 		  } else if (val == MIN_2_ROW_CMD) {
 			LCD_SendCommand(LCD_ADDR, 0xCE);
 			LCD_SendString(LCD_ADDR, (char*) "Min");
-			//Write_LCD_Buffer((char*)"Min", 3, 0xCE);
 
 		  } else if (val == MAX_2_ROW_CMD) {
 			LCD_SendCommand(LCD_ADDR, 0xCE);
 			LCD_SendString(LCD_ADDR, (char*) "Max");
-			//Write_LCD_Buffer((char*)"Max", 3, 0xCE);
 
 		  } else if (val == ARE_YOU_SURE_CMD) {
 			LCD_SendCommand(LCD_ADDR, ROW_4);
 			LCD_SendString(LCD_ADDR, (char*) "   Are you sure?    ");
-			//Write_LCD_Buffer((char*)"   Are you sure?    ", LCD_ROW_SIZE, ROW_4);
 
 		  } else if (val == MIN_1_ROW_CMD) {
 			LCD_SendCommand(LCD_ADDR, 0x8E);
 			LCD_SendString(LCD_ADDR, (char*) "Min");
-			//Write_LCD_Buffer((char*)"Min", 3, 0x8E);
 
 		  } else if (val == MAX_1_ROW_CMD) {
 			LCD_SendCommand(LCD_ADDR, 0x8E);
 			LCD_SendString(LCD_ADDR, (char*) "Max");
-			//Write_LCD_Buffer((char*)"Max", 3, 0x8E);
 
 		  } else if (val == ZERO_S_COORD_CMD) {
 			LCD_SendCommand(LCD_ADDR, S_COORD_POS);
-			//Write_LCD_Buffer((char*)"00000", COORD_SIZE, S_COORD_POS);
 			LCD_SendString(LCD_ADDR, "0000.0");
 
 		  } else if (val == SPACE_4_ROW_CMD) {
 			LCD_SendCommand(LCD_ADDR, ROW_4);
 			LCD_SendString(LCD_ADDR, (char*) "                    ");
-			//Write_LCD_Buffer((char*)"                    ", LCD_ROW_SIZE, ROW_4);
 
 		  } else if (val == ZERO_R_COORD_CMD) {
 			LCD_SendCommand(LCD_ADDR, R_COORD_POS);
-			//Write_LCD_Buffer((char*)"00000", COORD_SIZE, R_COORD_POS);
 			Write_LCD_Buffer((char*)"00000", COORD_SIZE, R_COORD_POS);
 
 		  } else if (val == SPACE_2_ROW_CMD) {
 			LCD_SendCommand(LCD_ADDR, ROW_2);
 			LCD_SendString(LCD_ADDR, (char*) "                    ");
-			//Write_LCD_Buffer((char*)"                    ", LCD_ROW_SIZE, ROW_2);
 
 		  } else if (val == SPACE_3_ROW_CMD) {
 			LCD_SendCommand(LCD_ADDR, ROW_3);
 			LCD_SendString(LCD_ADDR, (char*) "                    ");
-			//Write_LCD_Buffer((char*)"                    ", LCD_ROW_SIZE, ROW_3);
 
 		  } else if (val == CALLIBRATION_CMD) {
 			LCD_SendCommand(LCD_ADDR, ROW_3);
 			LCD_SendString(LCD_ADDR, (char*) "    Callibration    ");
-			//Write_LCD_Buffer((char*)"    Callibration    ", LCD_ROW_SIZE, ROW_3);
 
 		  } else if (val == CUTTING_CMD) {
 			LCD_SendCommand(LCD_ADDR, ROW_4);
 			LCD_SendString(LCD_ADDR, (char*) "      Cutting       ");
-			//Write_LCD_Buffer((char*)"      Cutting       ", LCD_ROW_SIZE, ROW_4);
 
 		  } else if (val == CUT_IS_DONE_CMD) {
 			LCD_SendCommand(LCD_ADDR, ROW_4);
 			LCD_SendString(LCD_ADDR, (char*) "    Cut is done     ");
-			//Write_LCD_Buffer((char*)"    Cut is done     ", LCD_ROW_SIZE, ROW_4);
 
 		  } else if (val == ALLOWED_CUTTING_CMD) {
 			LCD_SendCommand(LCD_ADDR, ROW_4);
 			LCD_SendString(LCD_ADDR, (char*) "  Allowed cutting   ");
-			//Write_LCD_Buffer((char*)"  Allowed cutting   ", LCD_ROW_SIZE, ROW_4);
 
 		  } else if (val == HAND_CATCHING_CMD) {
 			LCD_SendCommand(LCD_ADDR, ROW_4);
 			LCD_SendString(LCD_ADDR, (char*) "   Hand catching    ");
-			//Write_LCD_Buffer((char*)"   Hand catching    ", LCD_ROW_SIZE, ROW_4);
 
 		  } else if (val == REAL_CMD) {
 			LCD_SendCommand(LCD_ADDR, ROW_1);
 			LCD_SendString(LCD_ADDR, (char*) "Real  ");
-			//Write_LCD_Buffer((char*)"Real  ", sizeof("Real  "), ROW_1);
 
 		  } else if (val == SET_CMD) {
 			LCD_SendCommand(LCD_ADDR, ROW_2);
 			LCD_SendString(LCD_ADDR, (char*) "Set   ");
-			//Write_LCD_Buffer((char*)"Set   ", sizeof("Set   "), ROW_2);
 
 		  } else if (val == BRUSH_MOVING_CMD) {
 			LCD_SendCommand(LCD_ADDR, ROW_4);
 			LCD_SendString(LCD_ADDR, (char*) "    Brush Moving    ");
-			//LCD_SendString(LCD_ADDR, "    Brush Moving    ");
 
 		  } else if (val == ENCODER_VAL_CMD) {
+
+			char temp_buf_enc[7];
+
+			sprintf(temp_buf_enc, "%ld", encoder_value);
+
+			for (int i = 0; i < sizeof(temp_buf_enc); ++i) {
+			  if (temp_buf_enc[i] == 0) {
+				  temp_buf_enc[i] = 0x20;
+			  }
+			}
+			temp_buf_enc[7] = '\0';
+
 			LCD_SendCommand(LCD_ADDR, ROW_3);
 			Write_LCD_Buffer(temp_buf_enc, 7, ROW_3);
-			//LCD_SendString(LCD_ADDR, "    Brush Moving    ");
 
 		  } else if (val == CURRENT_SET_COORD_CMD) {
+
+			  char current_coord[6];
+
+			  sprintf(current_coord, "%6.1f", set_coord);
+
+			  for (int i = 0; i < sizeof(current_coord); ++i) {
+				  if (current_coord[i] == 0x20) {
+					  current_coord[i] = '0';
+				  }
+			  }
+			  current_coord[6] = '\0';
+
 			  LCD_SendCommand(LCD_ADDR, S_COORD_POS);
 			  Write_LCD_Buffer(current_coord, COORD_SIZE_WITH_POINT, S_COORD_POS);
 
 		  }  else if (val == CURRENT_REAL_COORD_CMD) {
+
+			  char current_coord[6];
+
+			  sprintf(current_coord, "%6.1f", real_coord);
+
+			  for (int i = 0; i < sizeof(current_coord); ++i) {
+				  if (current_coord[i] == 0x20) {
+					  current_coord[i] = '0';
+				  }
+			  }
+			  current_coord[6] = '\0';
+
 			  LCD_SendCommand(LCD_ADDR, R_COORD_POS);
 			  Write_LCD_Buffer(current_coord, COORD_SIZE_WITH_POINT, R_COORD_POS);
 		  }
+	  }
 
+	  if (HAL_GPIO_ReadPin(Power_In_GPIO_Port, Power_In_Pin) == 0)
+	  {
+		 Save_Coord(encoder_value);
 	  }
 	  osDelay(1);
   }

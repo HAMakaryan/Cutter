@@ -38,8 +38,7 @@
 #define REAL				1
 #define	SET					2
 
-#define TIMEOUT_TO_ACTIVATE_CUTTING_BUTTON 	4000 // /5000 er
-#define TIMEOUT_TO_CUT 						1000 // /3000 er
+#define TIMEOUT_PRINT_REAL			1000
 
 #define IDLE	0
 #define ERROR 	1
@@ -65,45 +64,39 @@
 #define	BACK	2
 #define STOP	3
 
-#define RAMP_UP		1
-#define RAMP_DOWN	2
 
-#define RAMP_UP_VAL		20
-#define RAMP_DOWN_VAL	20
+//popoxelu gorcakicner
 
-#define DELTA				0
-#define	ONE_ROTATION_VAL	(double)11.985	//mm		//11.962
-#define ONE_ROTATION_TICK	1000
+#define FORWARD_COEFFICIENT 0.4		//EXTRA_COORD -i 0.4 mas@ sharjvum e mid aragutyamb(FORWARD(aysinqn tesoghakan dashtic hervanum e sanr@))
 
-#define	MAX_DAC_VALUE				2200
-#define MIN_SPEED					1400
+#define BACK_COEFFICIENT_1 0.2		//(encoder_value - set_tick) taracutyan 0.2 mas@ sharjvum e max aragutyamb(BACK(tesoghakan dashtin motenum e sanr@))
+#define BACK_COEFFICIENT_2 0.2		//(encoder_value - set_tick) taracutyan 0.2 mas@ sharjvum e mid aragutyamb(BACK(tesoghakan dashtin motenum e sanr@))
 
-#define EXTRA_COORD 	500
-#define AVG_COUNT		5
-//#define MIN_COORD		600
+
+#define TIMEOUT_TO_ACTIVATE_CUTTING_BUTTON 	4000 // /5000 er
+#define TIMEOUT_TO_CUT 						1000 // /3000 er
+
+#define	ONE_ROTATION_VAL	(double)11.985	//mm		//11.962 mek ptuyti arjeq@ milimetrov
+#define ONE_ROTATION_TICK	1000						//mek ptuyti depqum tickeri tiv@
+
+#define MAX_SPEED	2200
+#define MID_SPEED	1600
+#define MIN_SPEED   1400
+
+#define EXTRA_COORD 	500		//lracucich tick araj gnalu hamar(tesoghakan dashtic sanr@ hervanum e)
+
+#define DELTA			0		//chshtelu gorcakic
 
 #define SOFT_LIMIT_UP				1050	//mm
 #define HARD_LIMIT_UP				1056	//mm
 #define LIMIT_DOWN					95		//mm
 
-#define HARD_LIMIT_UP_IN_TICK			(uint32_t)(HARD_LIMIT_UP * ONE_ROTATION_TICK / ONE_ROTATION_VAL)
-#define LIMIT_DOWN_IN_TICK				(uint32_t)(LIMIT_DOWN * ONE_ROTATION_TICK / ONE_ROTATION_VAL)
+#define HARD_LIMIT_UP_IN_TICK		(uint32_t)(HARD_LIMIT_UP * ONE_ROTATION_TICK / ONE_ROTATION_VAL)
+#define LIMIT_DOWN_IN_TICK			(uint32_t)(LIMIT_DOWN * ONE_ROTATION_TICK / ONE_ROTATION_VAL)
 
-//#define MIN_DISTANCE						30 //mm
-#define MIN_DISTANCE_IN_TICK				900//600
+#define MIN_DISTANCE_IN_TICK		600		//minimum taracutyun@, voric cacri depqum minimum aragutyamb e sharjvelu
 
-//#define TICK_FOR_RAMP_DOWN			600
-//#define INTERVAL_FOR_RAMP			3000	//3second
-//#define TIME_FOR_CHANGE_RAMP		10
 
-#define TIMEOUT_PRINT_REAL			1000
-
-//#define GO_OVER					5 //mm
-//#define GO_OVER_IN_TICK			600
-
-#define MAX_SPEED	2200
-#define MID_SPEED	1600
-#define MIN_SPEED   1400
 
 typedef enum {
 	SELECT,
