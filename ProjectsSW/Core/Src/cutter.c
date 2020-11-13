@@ -594,7 +594,7 @@ uint32_t set_tick = 0;
 
 uint8_t Get_Direction_and_Diff()
 {
-	set_tick = roundf((double)set_coord * ONE_ROTATION_TICK / ONE_ROTATION_VAL);
+	set_tick = round((double)set_coord * ONE_ROTATION_TICK / ONE_ROTATION_VAL);
 
 	//set_tick = set_tick + 30;
 
@@ -888,7 +888,7 @@ void Collects_Digits(int8_t coord_name)
 				xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
 				queue_var = MAIN_MENU_CMD;
 				xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
-				encoder_value = (double)real_coord * ONE_ROTATION_TICK / ONE_ROTATION_VAL;
+				encoder_value = round((double)real_coord * ONE_ROTATION_TICK / ONE_ROTATION_VAL);
 				Save_Coord(encoder_value);
 				//Goes to Select Mode
 				mode = SELECT;
@@ -1129,136 +1129,321 @@ uint8_t Get_Status(uint8_t dir)
 	return 0;
 }
 
-void Move_Brush()
+void set_debug_pins(uint8_t data)
 {
-	uint16_t speed = MIN_SPEED;
-	print_real_coord_time = 0;
-	arrange_out = 0;
+	if ((data & 0x01) == 0x01) {HAL_GPIO_WritePin(DB0_GPIO_Port, DB0_Pin, GPIO_PIN_SET); } else {HAL_GPIO_WritePin(DB0_GPIO_Port, DB0_Pin, GPIO_PIN_RESET);}
+	if ((data & 0x02) == 0x02) {HAL_GPIO_WritePin(DB1_GPIO_Port, DB1_Pin, GPIO_PIN_SET); } else {HAL_GPIO_WritePin(DB1_GPIO_Port, DB1_Pin, GPIO_PIN_RESET);}
+	if ((data & 0x04) == 0x04) {HAL_GPIO_WritePin(DB2_GPIO_Port, DB2_Pin, GPIO_PIN_SET); } else {HAL_GPIO_WritePin(DB2_GPIO_Port, DB2_Pin, GPIO_PIN_RESET);}
+	if ((data & 0x08) == 0x08) {HAL_GPIO_WritePin(DB3_GPIO_Port, DB3_Pin, GPIO_PIN_SET); } else {HAL_GPIO_WritePin(DB3_GPIO_Port, DB3_Pin, GPIO_PIN_RESET);}
+	if ((data & 0x10) == 0x10) {HAL_GPIO_WritePin(DB4_GPIO_Port, DB4_Pin, GPIO_PIN_SET); } else {HAL_GPIO_WritePin(DB4_GPIO_Port, DB4_Pin, GPIO_PIN_RESET);}
+}
 
-	if (direction == FORWARD) //tesoghakan dashtic hervanum e ays depqum
+uint32_t encoder[12];
+uint16_t speed = MIN_SPEED;
+
+#if defined(DEBUG_MODE)
+
+	void Move_Brush()
 	{
-		if (is_min_speed == 0)
+
+		print_real_coord_time = 0;
+		arrange_out = 0;
+
+		set_debug_pins(0x00);
+
+		if (direction == FORWARD) //tesoghakan dashtic hervanum e ays depqum
 		{
-			speed = MAX_SPEED;
-			Set_Inverter(FORWARD, speed);
+			set_debug_pins(0x01);
 
-			while(encoder_value < set_tick)
+			if (is_min_speed == 0)
 			{
-				if (Get_Status(FORWARD) == 1) break;
+				set_debug_pins(0x02);
+				uint8_t temp = 0;
+
+				encoder[0] = encoder_value;
+
+				speed = MAX_SPEED;
+				Set_Inverter(FORWARD, speed);
+
+				while(encoder_value < (set_tick + EXTRA_COORD))
+				{
+					if ((encoder_value >= set_tick) && (temp == 0))
+					{
+						set_debug_pins(0x03);
+						encoder[1] = encoder_value;
+						speed = MID_SPEED;
+						Set_Inverter(FORWARD, speed);
+						temp = 1;
+					}
+
+					if (Get_Status(FORWARD) == 1) { set_debug_pins(0x04); break; }
+				}
+
+				set_debug_pins(0x05);
+
+				encoder[2] = encoder_value;
+
+				Set_Inverter(STOP, 0);
+				set_debug_pins(0x00);
+
+				if (arrange_out == 0)
+				{
+					encoder[3] = encoder_value;
+					speed = MIN_SPEED;
+					Set_Inverter(BACK, speed);
+
+					while(encoder_value > (set_tick + DELTA))
+					{
+						set_debug_pins(0x06);
+						encoder[4] = encoder_value;
+						if (Get_Status(BACK) == 1) { set_debug_pins(0x07); break; }
+					}
+					encoder[5] = encoder_value;
+					set_debug_pins(0x08);
+				}
+
+			} else {
+
+				encoder[0] = encoder_value;
+				speed = MIN_SPEED;
+				Set_Inverter(FORWARD, speed);
+				set_debug_pins(0x09);
+
+				while(encoder_value < (set_tick + EXTRA_COORD))
+				{
+					encoder[1] = encoder_value;
+					set_debug_pins(0x0A);
+					if (Get_Status(FORWARD) == 1) { set_debug_pins(0x0B); break;}
+				}
+				encoder[2] = encoder_value;
+				set_debug_pins(0x0C);
+
+				Set_Inverter(STOP, 0);
+				set_debug_pins(0x00);
+
+				if (arrange_out == 0)
+				{
+					Set_Inverter(BACK, speed);
+
+					while(encoder_value > (set_tick + DELTA))
+					{
+						set_debug_pins(0x0D);
+						encoder[3] = encoder_value;
+						if (Get_Status(BACK) == 1) { set_debug_pins(0x0E); break;}
+					}
+					encoder[4] = encoder_value;
+					set_debug_pins(0x0F);
+				}
 			}
-
-			if (arrange_out == 0)
+		} else if (direction == BACK)
+		{
+			if (is_min_speed == 0)
 			{
-				speed = MID_SPEED;
+				uint8_t temp = 0;
+				set_debug_pins(0x10);
+
+				encoder[0] = encoder_value;
+				speed = MAX_SPEED;
+				Set_Inverter(BACK, speed);
+
+				while(encoder_value > (set_tick + DELTA))
+				{
+					if ((encoder_value <= (set_tick + EXTRA_COORD)) && (temp == 1))
+					{
+						set_debug_pins(0x30);
+						encoder[1] = encoder_value;
+						speed = MIN_SPEED;
+						Set_Inverter(BACK, speed);
+						temp = 2;
+
+					} else if ((encoder_value <= (set_tick + EXTRA_COORD + EXTRA_COORD)) && (temp == 0))
+					{
+						set_debug_pins(0x20);
+						encoder[2] = encoder_value;
+						speed = MID_SPEED;
+						Set_Inverter(BACK, speed);
+						temp = 1;
+					}
+
+					if (Get_Status(BACK) == 1) { set_debug_pins(0x40); break; }
+				}
+				encoder[3] = encoder_value;
+				set_debug_pins(0x50);
+
+			} else {
+				encoder[0] = encoder_value;
+				speed = MIN_SPEED;
+				Set_Inverter(BACK, speed);
+				set_debug_pins(0x60);
+				while(encoder_value > (set_tick + DELTA))
+				{
+					set_debug_pins(0x70);
+					if (Get_Status(BACK) == 1) { set_debug_pins(0x80); break; }
+				}
+				encoder[1] = encoder_value;
+				set_debug_pins(0x90);
+			}
+		}
+
+		encoder[6] = encoder_value;
+
+		Brush_Lock();
+		Set_Inverter(STOP, 0);
+		HAL_DAC_Stop(&hdac, DAC_CHANNEL_1);
+		set_debug_pins(0xA0);
+
+		print_real_coord_time = 0;
+		is_move = 0;
+		timeout_for_ramp = 0;
+		time_for_change_ramp = 0;
+		arrange_out = 0;
+
+		encoder[7] = encoder_value;
+		HAL_Delay(1000);
+
+		encoder[8] = encoder_value;
+
+		set_debug_pins(0xB0);
+		real_coord = (double)encoder_value * ONE_ROTATION_VAL / ONE_ROTATION_TICK;
+
+		//Saves real coordinate to backup register
+		Save_Coord(encoder_value);
+		//Prints real coordinate to LCD
+		Print_Coord(real_coord, REAL);
+		set_debug_pins(0xC0);
+		encoder[9] = encoder_value;
+		queue_var = SPACE_4_ROW_CMD;
+		xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
+		//Goes to CHECK_PEDAL mode
+		mode = CHECK_PEDAL;
+	}
+
+#else
+
+	void Move_Brush()
+	{
+		uint16_t speed = MIN_SPEED;
+		print_real_coord_time = 0;
+		arrange_out = 0;
+
+		if (direction == FORWARD) //tesoghakan dashtic hervanum e ays depqum
+		{
+			if (is_min_speed == 0)
+			{
+				uint8_t temp = 0;
+
+				speed = MAX_SPEED;
+				Set_Inverter(FORWARD, speed);
+
+				while(encoder_value < (set_tick + EXTRA_COORD))
+				{
+					if ((encoder_value >= set_tick) && (temp == 0))
+					{
+						speed = MID_SPEED;
+						Set_Inverter(FORWARD, speed);
+						temp = 1;
+					}
+
+					if (Get_Status(FORWARD) == 1) break;
+				}
+
+				Set_Inverter(STOP, 0);
+
+				if (arrange_out == 0)
+				{
+					speed = MIN_SPEED;
+					Set_Inverter(BACK, speed);
+
+					while(encoder_value > (set_tick + DELTA))
+					{
+						if (Get_Status(BACK) == 1) break;
+					}
+				}
+
+			} else {
+
+				speed = MIN_SPEED;
 				Set_Inverter(FORWARD, speed);
 
 				while(encoder_value < (set_tick + EXTRA_COORD))
 				{
 					if (Get_Status(FORWARD) == 1) break;
 				}
+
 				Set_Inverter(STOP, 0);
-			}
 
-			if (arrange_out == 0)
-			{
-				speed = MIN_SPEED;
-				Set_Inverter(BACK, speed);
-
-				while(encoder_value > (set_tick + DELTA))
+				if (arrange_out == 0)
 				{
-					if (Get_Status(BACK) == 1) break;
+					Set_Inverter(BACK, speed);
+
+					while(encoder_value > (set_tick + DELTA))
+					{
+						if (Get_Status(BACK) == 1) break;
+					}
 				}
 			}
-
-		} else {
-
-			speed = MIN_SPEED;
-			Set_Inverter(FORWARD, speed);
-
-			while(encoder_value < (set_tick + EXTRA_COORD))
-			{
-				if (Get_Status(FORWARD) == 1) break;
-			}
-
-			Set_Inverter(STOP, 0);
-
-			if (arrange_out == 0)
-			{
-				Set_Inverter(BACK, speed);
-
-				while(encoder_value > (set_tick + DELTA))
-				{
-					if (Get_Status(BACK) == 1) break;
-				}
-			}
-		}
-	} else if (direction == BACK)
-	{
-		if (is_min_speed == 0)
+		} else if (direction == BACK)
 		{
-			speed = MAX_SPEED;
-			Set_Inverter(BACK, speed);
-
-			while(encoder_value > (set_tick + EXTRA_COORD + 300))
+			if (is_min_speed == 0)
 			{
-				if (Get_Status(BACK) == 1) break;
-			}
+				uint8_t temp = 0;
 
-			if (arrange_out == 0)
-			{
-				speed = MID_SPEED;
+				speed = MAX_SPEED;
 				Set_Inverter(BACK, speed);
 
-				while(encoder_value > (set_tick + EXTRA_COORD))
+				while(encoder_value > (set_tick + DELTA))
 				{
+					if ((encoder_value <= (set_tick + EXTRA_COORD)) && (temp == 1))
+					{
+						speed = MIN_SPEED;
+						Set_Inverter(BACK, speed);
+						temp = 2;
+
+					} else if ((encoder_value <= (set_tick + EXTRA_COORD + EXTRA_COORD)) && (temp == 0))
+					{
+						speed = MID_SPEED;
+						Set_Inverter(BACK, speed);
+						temp = 1;
+					}
+
 					if (Get_Status(BACK) == 1) break;
 				}
-			}
 
-			if (arrange_out == 0)
-			{
+			} else {
 				speed = MIN_SPEED;
 				Set_Inverter(BACK, speed);
-
 				while(encoder_value > (set_tick + DELTA))
 				{
 					if (Get_Status(BACK) == 1) break;
 				}
 			}
-
-		} else {
-			speed = MIN_SPEED;
-			Set_Inverter(BACK, speed);
-			while(encoder_value > (set_tick + DELTA))
-			{
-				if (Get_Status(BACK) == 1) break;
-			}
 		}
+
+		Brush_Lock();
+		Set_Inverter(STOP, 0);
+		HAL_DAC_Stop(&hdac, DAC_CHANNEL_1);
+
+		print_real_coord_time = 0;
+		is_move = 0;
+		timeout_for_ramp = 0;
+		time_for_change_ramp = 0;
+		arrange_out = 0;
+
+		HAL_Delay(1000);
+
+		real_coord = (double)encoder_value * ONE_ROTATION_VAL / ONE_ROTATION_TICK;
+
+		//Saves real coordinate to backup register
+		Save_Coord(encoder_value);
+		//Prints real coordinate to LCD
+		Print_Coord(real_coord, REAL);
+		queue_var = SPACE_4_ROW_CMD;
+		xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
+		//Goes to CHECK_PEDAL mode
+		mode = CHECK_PEDAL;
 	}
 
-	Brush_Lock();
-	Set_Inverter(STOP, 0);
-	HAL_DAC_Stop(&hdac, DAC_CHANNEL_1);
-
-	print_real_coord_time = 0;
-	is_move = 0;
-	timeout_for_ramp = 0;
-	time_for_change_ramp = 0;
-	arrange_out = 0;
-
-	HAL_Delay(1000);
-
-	real_coord = (double)encoder_value * ONE_ROTATION_VAL / ONE_ROTATION_TICK;
-
-	//Saves real coordinate to backup register
-	Save_Coord(encoder_value);
-	//Prints real coordinate to LCD
-	Print_Coord(real_coord, REAL);
-	queue_var = SPACE_4_ROW_CMD;
-	xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
-	//Goes to CHECK_PEDAL mode
-	mode = CHECK_PEDAL;
-}
+#endif
 
 ///////////////////////////////////////////////////////////////////////////////
 //					     CUTTING MODE										 //
@@ -1483,6 +1668,8 @@ void Print_Coord(double r_coord, uint8_t coord_name)
 		queue_var = CURRENT_REAL_COORD_CMD;
 		xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
 		queue_var = ENCODER_VAL_CMD;
+		xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
+		queue_var = SPEED_CMD;
 		xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
 
 	} else {

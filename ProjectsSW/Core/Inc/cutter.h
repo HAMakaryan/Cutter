@@ -67,6 +67,8 @@
 
 //popoxelu gorcakicner
 
+#define DEBUG_MODE
+
 #define FORWARD_COEFFICIENT 0.4		//EXTRA_COORD -i 0.4 mas@ sharjvum e mid aragutyamb(FORWARD(aysinqn tesoghakan dashtic hervanum e sanr@))
 
 #define BACK_COEFFICIENT_1 0.2		//(encoder_value - set_tick) taracutyan 0.2 mas@ sharjvum e max aragutyamb(BACK(tesoghakan dashtin motenum e sanr@))
@@ -91,10 +93,10 @@
 #define HARD_LIMIT_UP				1056	//mm
 #define LIMIT_DOWN					95		//mm
 
-#define HARD_LIMIT_UP_IN_TICK		(uint32_t)(HARD_LIMIT_UP * ONE_ROTATION_TICK / ONE_ROTATION_VAL)
-#define LIMIT_DOWN_IN_TICK			(uint32_t)(LIMIT_DOWN * ONE_ROTATION_TICK / ONE_ROTATION_VAL)
+#define HARD_LIMIT_UP_IN_TICK		(uint32_t)round(((double)HARD_LIMIT_UP * ONE_ROTATION_TICK / ONE_ROTATION_VAL))
+#define LIMIT_DOWN_IN_TICK			(uint32_t)round(((double)LIMIT_DOWN * ONE_ROTATION_TICK / ONE_ROTATION_VAL))
 
-#define MIN_DISTANCE_IN_TICK		900		//minimum taracutyun@, voric cacri depqum minimum aragutyamb e sharjvelu
+#define MIN_DISTANCE_IN_TICK		1100		//minimum taracutyun@, voric cacri depqum minimum aragutyamb e sharjvelu
 
 
 

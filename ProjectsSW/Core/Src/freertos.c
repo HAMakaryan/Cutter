@@ -47,6 +47,7 @@
 extern char temp_buf_enc[7];
 extern char current_coord[6];
 extern int32_t encoder_value;
+extern uint16_t speed;
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
@@ -264,7 +265,7 @@ void StartTask02(void *argument)
 
 		  } else if (val == ENCODER_VAL_CMD) {
 
-			char temp_buf_enc[7];
+			char temp_buf_enc[6];
 
 			sprintf(temp_buf_enc, "%ld", encoder_value);
 
@@ -273,7 +274,7 @@ void StartTask02(void *argument)
 				  temp_buf_enc[i] = 0x20;
 			  }
 			}
-			temp_buf_enc[7] = '\0';
+			temp_buf_enc[5] = '\0';
 
 			LCD_SendCommand(LCD_ADDR, ROW_3);
 			Write_LCD_Buffer(temp_buf_enc, 7, ROW_3);
@@ -309,6 +310,22 @@ void StartTask02(void *argument)
 
 			  LCD_SendCommand(LCD_ADDR, R_COORD_POS);
 			  Write_LCD_Buffer(current_coord, COORD_SIZE_WITH_POINT, R_COORD_POS);
+
+		  } else if (val == SPEED_CMD) {
+
+			 char temp_buf_enc[5];
+
+				sprintf(temp_buf_enc, "%d", speed);
+
+				for (int i = 0; i < sizeof(temp_buf_enc); ++i) {
+					if (temp_buf_enc[i] == 0) {
+					  temp_buf_enc[i] = 0x20;
+					}
+				}
+				temp_buf_enc[4] = '\0';
+
+				LCD_SendCommand(LCD_ADDR, 0xA1);
+				Write_LCD_Buffer(temp_buf_enc, 5, 0xA1);
 		  }
 	  }
 
