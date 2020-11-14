@@ -58,7 +58,7 @@ uint8_t coord_size 			= 0;
 uint8_t number_accept_count = 0;
 uint8_t mode 				= SELECT;
 uint8_t direction 			= 0;
-uint8_t is_min_speed		= 0;
+//uint8_t is_min_speed		= 0;
 char coord_array[COORD_SIZE];
 double encoder_diff 		= 0;
 double set_coord 			= 0;
@@ -591,6 +591,7 @@ void Reset_LCD_Pointers()
 }
 
 uint32_t set_tick = 0;
+uint32_t tick_difference = 0;
 
 uint8_t Get_Direction_and_Diff()
 {
@@ -612,6 +613,7 @@ uint8_t Get_Direction_and_Diff()
 	}
 
 	int32_t tick_diff = encoder_value - set_tick;
+	tick_difference = abs(tick_diff);
 
 	if (abs(tick_diff) < 5)
 	{
@@ -632,11 +634,11 @@ uint8_t Get_Direction_and_Diff()
 		direction = BACK;
 	}
 
-	if (abs(tick_diff) < MIN_DISTANCE_IN_TICK) {
+	/*if (abs(tick_diff) < MIN_DISTANCE_IN_TICK) {
 		is_min_speed = 1;
 	} else {
 		is_min_speed = 0;
-	}
+	}*/
 	return 0;
 }
 
@@ -1140,11 +1142,17 @@ void set_debug_pins(uint8_t data)
 
 uint32_t encoder[12];
 uint16_t speed = MIN_SPEED;
+uint16_t speed_arr[4];
 
 #if defined(DEBUG_MODE)
 
 	void Move_Brush()
 	{
+
+		speed_arr[0] = 0;
+		speed_arr[1] = 0;
+		speed_arr[2] = 0;
+		speed_arr[3] = 0;
 
 		print_real_coord_time = 0;
 		arrange_out = 0;
@@ -1155,25 +1163,39 @@ uint16_t speed = MIN_SPEED;
 		{
 			set_debug_pins(0x01);
 
-			if (is_min_speed == 0)
-			{
+			//if (is_min_speed == 0)
+			//{
 				set_debug_pins(0x02);
 				uint8_t temp = 0;
 
 				encoder[0] = encoder_value;
 
-				speed = MAX_SPEED;
+				if (tick_difference < 417)
+				{
+					speed = MIN_SPEED;
+					temp = 1;
+
+				} else if (tick_difference < 2086)
+				{
+					speed = MID_SPEED;
+					temp = 1;
+				} else {
+					speed = MAX_SPEED;
+					temp = 0;
+				}
 				Set_Inverter(FORWARD, speed);
+				speed_arr[0] = speed;
 
 				while(encoder_value < (set_tick + EXTRA_COORD))
 				{
-					if ((encoder_value >= set_tick) && (temp == 0))
+					if ((encoder_value >= (set_tick-500)) && (temp == 0))
 					{
 						set_debug_pins(0x03);
 						encoder[1] = encoder_value;
 						speed = MID_SPEED;
 						Set_Inverter(FORWARD, speed);
 						temp = 1;
+						speed_arr[1] = speed;
 					}
 
 					if (Get_Status(FORWARD) == 1) { set_debug_pins(0x04); break; }
@@ -1197,12 +1219,13 @@ uint16_t speed = MIN_SPEED;
 						set_debug_pins(0x06);
 						encoder[4] = encoder_value;
 						if (Get_Status(BACK) == 1) { set_debug_pins(0x07); break; }
+						speed_arr[2] = speed;
 					}
 					encoder[5] = encoder_value;
 					set_debug_pins(0x08);
 				}
 
-			} else {
+			/*} else {
 
 				encoder[0] = encoder_value;
 				speed = MIN_SPEED;
@@ -1234,17 +1257,31 @@ uint16_t speed = MIN_SPEED;
 					encoder[4] = encoder_value;
 					set_debug_pins(0x0F);
 				}
-			}
+			}*/
 		} else if (direction == BACK)
 		{
-			if (is_min_speed == 0)
-			{
+			//if (is_min_speed == 0)
+			//{
 				uint8_t temp = 0;
 				set_debug_pins(0x10);
 
 				encoder[0] = encoder_value;
-				speed = MAX_SPEED;
+				if (tick_difference < 417)
+				{
+					speed = MIN_SPEED;
+					temp = 2;
+
+				} else if (tick_difference < 2086)
+				{
+					speed = MID_SPEED;
+					temp = 1;
+
+				} else {
+					speed = MAX_SPEED;
+					temp = 0;
+				}
 				Set_Inverter(BACK, speed);
+				speed_arr[0] = speed;
 
 				while(encoder_value > (set_tick + DELTA))
 				{
@@ -1255,14 +1292,16 @@ uint16_t speed = MIN_SPEED;
 						speed = MIN_SPEED;
 						Set_Inverter(BACK, speed);
 						temp = 2;
+						speed_arr[1] = speed;
 
-					} else if ((encoder_value <= (set_tick + EXTRA_COORD + EXTRA_COORD)) && (temp == 0))
+					} else if ((encoder_value <= (set_tick + EXTRA_COORD + 1500)) && (temp == 0))
 					{
 						set_debug_pins(0x20);
 						encoder[2] = encoder_value;
 						speed = MID_SPEED;
 						Set_Inverter(BACK, speed);
 						temp = 1;
+						speed_arr[2] = speed;
 					}
 
 					if (Get_Status(BACK) == 1) { set_debug_pins(0x40); break; }
@@ -1270,7 +1309,7 @@ uint16_t speed = MIN_SPEED;
 				encoder[3] = encoder_value;
 				set_debug_pins(0x50);
 
-			} else {
+			/*} else {
 				encoder[0] = encoder_value;
 				speed = MIN_SPEED;
 				Set_Inverter(BACK, speed);
@@ -1282,7 +1321,7 @@ uint16_t speed = MIN_SPEED;
 				}
 				encoder[1] = encoder_value;
 				set_debug_pins(0x90);
-			}
+			}*/
 		}
 
 		encoder[6] = encoder_value;
@@ -1290,7 +1329,7 @@ uint16_t speed = MIN_SPEED;
 		Brush_Lock();
 		Set_Inverter(STOP, 0);
 		HAL_DAC_Stop(&hdac, DAC_CHANNEL_1);
-		set_debug_pins(0xA0);
+		set_debug_pins(0x00);
 
 		print_real_coord_time = 0;
 		is_move = 0;
@@ -1303,14 +1342,12 @@ uint16_t speed = MIN_SPEED;
 
 		encoder[8] = encoder_value;
 
-		set_debug_pins(0xB0);
 		real_coord = (double)encoder_value * ONE_ROTATION_VAL / ONE_ROTATION_TICK;
 
 		//Saves real coordinate to backup register
 		Save_Coord(encoder_value);
 		//Prints real coordinate to LCD
 		Print_Coord(real_coord, REAL);
-		set_debug_pins(0xC0);
 		encoder[9] = encoder_value;
 		queue_var = SPACE_4_ROW_CMD;
 		xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
@@ -1322,55 +1359,104 @@ uint16_t speed = MIN_SPEED;
 
 	void Move_Brush()
 	{
-		uint16_t speed = MIN_SPEED;
+
+		//speed_arr[0] = 0;
+		//speed_arr[1] = 0;
+		//speed_arr[2] = 0;
+		//speed_arr[3] = 0;
+
 		print_real_coord_time = 0;
 		arrange_out = 0;
 
+		//set_debug_pins(0x00);
+
 		if (direction == FORWARD) //tesoghakan dashtic hervanum e ays depqum
 		{
-			if (is_min_speed == 0)
-			{
+			//set_debug_pins(0x01);
+
+			//if (is_min_speed == 0)
+			//{
+				//set_debug_pins(0x02);
 				uint8_t temp = 0;
 
-				speed = MAX_SPEED;
+				//encoder[0] = encoder_value;
+
+				if (tick_difference < 417)
+				{
+					speed = MIN_SPEED;
+					temp = 1;
+
+				} else if (tick_difference < 2086)
+				{
+					speed = MID_SPEED;
+					temp = 1;
+
+				} else {
+					speed = MAX_SPEED;
+					temp = 0;
+				}
+
 				Set_Inverter(FORWARD, speed);
+				//speed_arr[0] = speed;
 
 				while(encoder_value < (set_tick + EXTRA_COORD))
 				{
-					if ((encoder_value >= set_tick) && (temp == 0))
+					if ((encoder_value >= (set_tick-1500)) && (temp == 0))
 					{
+						//set_debug_pins(0x03);
+						//encoder[1] = encoder_value;
 						speed = MID_SPEED;
 						Set_Inverter(FORWARD, speed);
 						temp = 1;
+						//speed_arr[1] = speed;
 					}
 
-					if (Get_Status(FORWARD) == 1) break;
+					if (Get_Status(FORWARD) == 1) { break; }//set_debug_pins(0x04); break; }
 				}
 
+				//set_debug_pins(0x05);
+
+				//encoder[2] = encoder_value;
+
 				Set_Inverter(STOP, 0);
+				//HAL_Delay(5000);
+				//set_debug_pins(0x00);
 
 				if (arrange_out == 0)
 				{
+					//encoder[3] = encoder_value;
 					speed = MIN_SPEED;
 					Set_Inverter(BACK, speed);
 
 					while(encoder_value > (set_tick + DELTA))
 					{
-						if (Get_Status(BACK) == 1) break;
+						//set_debug_pins(0x06);
+						//encoder[4] = encoder_value;
+						if (Get_Status(BACK) == 1) { break; }//set_debug_pins(0x07); break; }
+						//speed_arr[2] = speed;
 					}
+					//encoder[5] = encoder_value;
+					//set_debug_pins(0x08);
 				}
 
-			} else {
+			/*} else {
 
+				encoder[0] = encoder_value;
 				speed = MIN_SPEED;
 				Set_Inverter(FORWARD, speed);
+				set_debug_pins(0x09);
 
 				while(encoder_value < (set_tick + EXTRA_COORD))
 				{
-					if (Get_Status(FORWARD) == 1) break;
+					encoder[1] = encoder_value;
+					set_debug_pins(0x0A);
+					if (Get_Status(FORWARD) == 1) { set_debug_pins(0x0B); break;}
 				}
+				encoder[2] = encoder_value;
+				set_debug_pins(0x0C);
 
 				Set_Inverter(STOP, 0);
+				set_debug_pins(0x00);
 
 				if (arrange_out == 0)
 				{
@@ -1378,50 +1464,86 @@ uint16_t speed = MIN_SPEED;
 
 					while(encoder_value > (set_tick + DELTA))
 					{
-						if (Get_Status(BACK) == 1) break;
+						set_debug_pins(0x0D);
+						encoder[3] = encoder_value;
+						if (Get_Status(BACK) == 1) { set_debug_pins(0x0E); break;}
 					}
+					encoder[4] = encoder_value;
+					set_debug_pins(0x0F);
 				}
-			}
+			}*/
 		} else if (direction == BACK)
 		{
-			if (is_min_speed == 0)
-			{
+			//if (is_min_speed == 0)
+			//{
 				uint8_t temp = 0;
+				//set_debug_pins(0x10);
 
-				speed = MAX_SPEED;
+				//encoder[0] = encoder_value;
+				if (tick_difference < 417)
+				{
+					speed = MIN_SPEED;
+					temp = 2;
+
+				} else if (tick_difference < 2086)
+				{
+					speed = MID_SPEED;
+					temp = 1;
+
+				} else {
+					speed = MAX_SPEED;
+					temp = 0;
+				}
 				Set_Inverter(BACK, speed);
+				//speed_arr[0] = speed;
 
 				while(encoder_value > (set_tick + DELTA))
 				{
-					if ((encoder_value <= (set_tick + EXTRA_COORD)) && (temp == 1))
+					if ((encoder_value <= (set_tick + 100)) && (temp == 1))
 					{
+						//set_debug_pins(0x30);
+						//encoder[1] = encoder_value;
 						speed = MIN_SPEED;
 						Set_Inverter(BACK, speed);
 						temp = 2;
+						//speed_arr[1] = speed;
 
-					} else if ((encoder_value <= (set_tick + EXTRA_COORD + EXTRA_COORD)) && (temp == 0))
+					} else if ((encoder_value <= (set_tick + 100 + 1500)) && (temp == 0))
 					{
+						//set_debug_pins(0x20);
+						//encoder[2] = encoder_value;
 						speed = MID_SPEED;
 						Set_Inverter(BACK, speed);
 						temp = 1;
+						//speed_arr[2] = speed;
 					}
 
-					if (Get_Status(BACK) == 1) break;
+					if (Get_Status(BACK) == 1) { break;}//set_debug_pins(0x40); break; }
 				}
+				//encoder[3] = encoder_value;
+				//set_debug_pins(0x50);
 
-			} else {
+			/*} else {
+				encoder[0] = encoder_value;
 				speed = MIN_SPEED;
 				Set_Inverter(BACK, speed);
+				set_debug_pins(0x60);
 				while(encoder_value > (set_tick + DELTA))
 				{
-					if (Get_Status(BACK) == 1) break;
+					set_debug_pins(0x70);
+					if (Get_Status(BACK) == 1) { set_debug_pins(0x80); break; }
 				}
-			}
+				encoder[1] = encoder_value;
+				set_debug_pins(0x90);
+			}*/
 		}
+
+		//encoder[6] = encoder_value;
 
 		Brush_Lock();
 		Set_Inverter(STOP, 0);
 		HAL_DAC_Stop(&hdac, DAC_CHANNEL_1);
+		set_debug_pins(0x00);
 
 		print_real_coord_time = 0;
 		is_move = 0;
@@ -1429,7 +1551,10 @@ uint16_t speed = MIN_SPEED;
 		time_for_change_ramp = 0;
 		arrange_out = 0;
 
+		//encoder[7] = encoder_value;
 		HAL_Delay(1000);
+
+		//encoder[8] = encoder_value;
 
 		real_coord = (double)encoder_value * ONE_ROTATION_VAL / ONE_ROTATION_TICK;
 
@@ -1437,6 +1562,7 @@ uint16_t speed = MIN_SPEED;
 		Save_Coord(encoder_value);
 		//Prints real coordinate to LCD
 		Print_Coord(real_coord, REAL);
+		//encoder[9] = encoder_value;
 		queue_var = SPACE_4_ROW_CMD;
 		xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
 		//Goes to CHECK_PEDAL mode

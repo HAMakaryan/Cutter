@@ -67,12 +67,12 @@
 
 //popoxelu gorcakicner
 
-#define DEBUG_MODE
+//#define DEBUG_MODE
 
-#define FORWARD_COEFFICIENT 0.4		//EXTRA_COORD -i 0.4 mas@ sharjvum e mid aragutyamb(FORWARD(aysinqn tesoghakan dashtic hervanum e sanr@))
+//#define FORWARD_COEFFICIENT 0.4		//EXTRA_COORD -i 0.4 mas@ sharjvum e mid aragutyamb(FORWARD(aysinqn tesoghakan dashtic hervanum e sanr@))
 
-#define BACK_COEFFICIENT_1 0.2		//(encoder_value - set_tick) taracutyan 0.2 mas@ sharjvum e max aragutyamb(BACK(tesoghakan dashtin motenum e sanr@))
-#define BACK_COEFFICIENT_2 0.2		//(encoder_value - set_tick) taracutyan 0.2 mas@ sharjvum e mid aragutyamb(BACK(tesoghakan dashtin motenum e sanr@))
+//#define BACK_COEFFICIENT_1 0.2		//(encoder_value - set_tick) taracutyan 0.2 mas@ sharjvum e max aragutyamb(BACK(tesoghakan dashtin motenum e sanr@))
+//#define BACK_COEFFICIENT_2 0.2		//(encoder_value - set_tick) taracutyan 0.2 mas@ sharjvum e mid aragutyamb(BACK(tesoghakan dashtin motenum e sanr@))
 
 
 #define TIMEOUT_TO_ACTIVATE_CUTTING_BUTTON 	4000 // /5000 er
@@ -81,11 +81,11 @@
 #define	ONE_ROTATION_VAL	(double)11.985	//mm		//11.962 mek ptuyti arjeq@ milimetrov
 #define ONE_ROTATION_TICK	1000						//mek ptuyti depqum tickeri tiv@
 
-#define MAX_SPEED	2200
+#define MAX_SPEED	2420
 #define MID_SPEED	1600
-#define MIN_SPEED   1400
+#define MIN_SPEED   1410
 
-#define EXTRA_COORD 	500		//lracucich tick araj gnalu hamar(tesoghakan dashtic sanr@ hervanum e)
+#define EXTRA_COORD 	50		//lracucich tick araj gnalu hamar(tesoghakan dashtic sanr@ hervanum e)
 
 #define DELTA			0		//chshtelu gorcakic
 
@@ -96,7 +96,7 @@
 #define HARD_LIMIT_UP_IN_TICK		(uint32_t)round(((double)HARD_LIMIT_UP * ONE_ROTATION_TICK / ONE_ROTATION_VAL))
 #define LIMIT_DOWN_IN_TICK			(uint32_t)round(((double)LIMIT_DOWN * ONE_ROTATION_TICK / ONE_ROTATION_VAL))
 
-#define MIN_DISTANCE_IN_TICK		1100		//minimum taracutyun@, voric cacri depqum minimum aragutyamb e sharjvelu
+//#define MIN_DISTANCE_IN_TICK		1100		//minimum taracutyun@, voric cacri depqum minimum aragutyamb e sharjvelu
 
 
 
