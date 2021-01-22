@@ -88,6 +88,8 @@ uint16_t print_real_coord_time = 0;
 
 uint8_t is_limited_number = 0;
 
+uint8_t mode_from_to_hand_catch = 0;
+
 double temp_coord = 0;
 
 extern osMessageQueueId_t myQueue01Handle;
@@ -1401,7 +1403,7 @@ uint16_t speed_arr[4];
 
 				while(encoder_value < (set_tick + EXTRA_COORD))
 				{
-					if ((encoder_value >= (set_tick-1500)) && (temp == 0))
+					if ((encoder_value >= (set_tick-1500)) && (temp == 0))  //heranalu jamanak 1500
 					{
 						//set_debug_pins(0x03);
 						//encoder[1] = encoder_value;
@@ -1508,7 +1510,7 @@ uint16_t speed_arr[4];
 						temp = 2;
 						//speed_arr[1] = speed;
 
-					} else if ((encoder_value <= (set_tick + 100 + 1500)) && (temp == 0))
+					} else if ((encoder_value <= (set_tick + 100 + 1500)) && (temp == 0)) //motenalu jamanak 1500 + 100
 					{
 						//set_debug_pins(0x20);
 						//encoder[2] = encoder_value;
@@ -1631,9 +1633,9 @@ void Read_Pin(GPIO_TypeDef* GPIOx, uint16_t GPIO_Pin, uint8_t * st0_counter,
 			(*st1_counter)++;
 		}
 		if (*st1_counter == DEBOUNCE_TIME) {
-			if (GPIOx == Cutting_Buttons_GPIO_Port && GPIO_Pin == Cutting_Buttons_Pin)  {
+			/*if (GPIOx == Cutting_Buttons_GPIO_Port && GPIO_Pin == Cutting_Buttons_Pin)  {
 				cut_is_done = 0;
-			}
+			}*/
 			*is_pressed = 0;
 		}
 	}
@@ -1722,11 +1724,10 @@ void Check_Pedal()
 
 				if (delay_for_cutting == TIMEOUT_TO_CUT) {
 
+					Cutting_On();		//himq e dnum danaki sharjvelun
+
 					//Reads knife sensors
 					if (Read_Knife_Sensors() == 1) {
-
-						//Cuts the paper
-						Cutting_On();
 						temp = 1;
 						if (old_temp != temp) {
 							queue_var = CUTTING_CMD;
@@ -1734,16 +1735,20 @@ void Check_Pedal()
 						}
 
 					} else {
-						Cutting_Off();
-						cut_is_done = 1;
-						temp = 2;
-						if (old_temp != temp) {
-							queue_var = CUT_IS_DONE_CMD;
-							xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
+						if (temp == 1) {
+
+							Cutting_Off();
+							cut_is_done = 1;	//sa nshanakum e 1 shrjan katarel e danak@ yev chaqi vra e
+							temp = 2;
+							if (old_temp != temp) {
+								queue_var = CUT_IS_DONE_CMD;
+								xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
+							}
 						}
 					}
 				}
-			} else if ((input_state.cut_is_pressed == 0) && (cut_is_done == 0)) {
+			} else if ((input_state.cut_is_pressed == 0)) {
+				cut_is_done = 0;
 				Cutting_Off();
 				delay_for_cutting = 0;
 				temp = 3;
@@ -1754,6 +1759,8 @@ void Check_Pedal()
 			}
 		}
 	} else {
+		Unlock_Handle();
+
 		if (pedal_is_pressed == 1) {
 			old_temp = temp = 0;
 			pedal_is_pressed = 0;
@@ -1764,18 +1771,32 @@ void Check_Pedal()
 			queue_var = SPACE_4_ROW_CMD;
 			xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
 		}
-		if (keypad_timeout == KEYPAD_TIMEOUT) {
-			keypad_timeout = 0;
-			Read_Keypad();
-		}
-		if (!Empty(keypad_buf_length)) {
-			uint8_t data = Read_Keypad_Buffer(keypad_buffer);
 
-			//If pressed 'C' key goes to the CALLIBRATION mode
-			if (data == '*') {
-				mode = SELECT;
-				queue_var = MAIN_MENU_CMD;
-				xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
+		if (input_state.hand_catch_is_pressed == 1)
+		{
+			print_real_coord_time = 0;
+			Brush_Unlock();
+			queue_var = HAND_CATCHING_CMD;
+			xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
+			mode = HAND_CATCH;
+			mode_from_to_hand_catch = CHECK_PEDAL;
+
+		} else {
+
+			if (keypad_timeout == KEYPAD_TIMEOUT) {
+				keypad_timeout = 0;
+				Read_Keypad();
+			}
+			if (!Empty(keypad_buf_length)) {
+				uint8_t data = Read_Keypad_Buffer(keypad_buffer);
+
+				//If pressed 'C' key goes to the CALLIBRATION mode
+				if (data == '*') {
+					Lock_Handle();
+					mode = SELECT;
+					queue_var = MAIN_MENU_CMD;
+					xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
+				}
 			}
 		}
 	}
@@ -1830,7 +1851,14 @@ void Check_Hand_Catch()
 			xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
 
 			coord_size = Get_Coord_Size(coord_array, real_coord); //TODO
-			mode = CALLIBRATION;
+			if (mode_from_to_hand_catch == CALLIBRATION)
+			{
+				mode = CALLIBRATION;
+				mode_from_to_hand_catch = 0;
+			} else if (mode_from_to_hand_catch == CHECK_PEDAL) {
+				mode = CHECK_PEDAL;
+				mode_from_to_hand_catch = 0;
+			}
 		}
 	}
 }
@@ -1934,6 +1962,7 @@ void state_machine()
 					queue_var = HAND_CATCHING_CMD;
 					xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
 					mode = HAND_CATCH;
+					mode_from_to_hand_catch = CALLIBRATION;
 				}
 			}
 			break;
