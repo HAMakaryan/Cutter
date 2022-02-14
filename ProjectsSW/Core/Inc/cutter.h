@@ -83,7 +83,7 @@
 
 #define MAX_SPEED	2420
 #define MID_SPEED	1600
-#define MIN_SPEED   1410
+#define MIN_SPEED   1420 //old 1410
 
 #define EXTRA_COORD 	50		//lracucich tick araj gnalu hamar(tesoghakan dashtic sanr@ hervanum e)
 

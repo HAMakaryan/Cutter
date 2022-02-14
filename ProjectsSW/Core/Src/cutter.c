@@ -1814,10 +1814,10 @@ void Print_Coord(double r_coord, uint8_t coord_name)
 		xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
 		queue_var = CURRENT_REAL_COORD_CMD;
 		xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
-		queue_var = ENCODER_VAL_CMD;
-		xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
-		queue_var = SPEED_CMD;
-		xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
+		// queue_var = ENCODER_VAL_CMD;
+		// xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
+		// queue_var = SPEED_CMD;
+		// xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
 
 	} else {
 		queue_var = SET_CMD;
