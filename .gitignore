@@ -1,8 +1,7 @@
+*.log
+*.launch
+
 Debug/
 .settings/
 Release/
-*.launch
-*.bak
-
-
-
+Fragments/
