@@ -65,14 +65,12 @@ extern uint8_t keypad_timeout;
 extern uint8_t input_timeout;
 extern uint8_t lcd_timeout;
 extern uint8_t encoder_time;
-extern uint8_t is_move;
 extern uint16_t delay_for_cutting_buttons;
 extern uint16_t delay_for_cutting;
-extern uint16_t timeout_for_ramp;
 extern Input_State input_state;
 
-uint8_t time_for_change_ramp = 0;
 extern uint16_t print_real_coord_time;
+extern uint16_t back_forward_button_timeout;
 extern uint8_t mode;
 /* USER CODE END EV */
 
@@ -178,53 +176,43 @@ void DebugMon_Handler(void)
 void TIM2_IRQHandler(void)
 {
   /* USER CODE BEGIN TIM2_IRQn 0 */
-  if (lcd_timeout < LCD_TIMEOUT)
-  {
+	if (lcd_timeout < LCD_TIMEOUT)
+	{
 	  lcd_timeout++;
-  }
+	}
 
-  if (keypad_timeout < KEYPAD_TIMEOUT)
-  {
+	if (keypad_timeout < KEYPAD_TIMEOUT)
+	{
 	  keypad_timeout++;
-  }
-  if (input_timeout < INPUT_TIMEOUT)
-  {
+	}
+
+	if (input_timeout < INPUT_TIMEOUT)
+	{
 	  input_timeout++;
-  }
+	}
 
-
-  if (mode == CHECK_PEDAL)
-  {
-	  if (input_state.pedal_is_pressed == 1)
+	if (input_state.pedal_is_pressed == 1)
+	{
+	  if (delay_for_cutting_buttons < TIMEOUT_TO_ACTIVATE_CUTTING_BUTTON)
 	  {
-		  if (delay_for_cutting_buttons < TIMEOUT_TO_ACTIVATE_CUTTING_BUTTON)
-		  {
-			  delay_for_cutting_buttons++;
-		  }
-
-		  if (delay_for_cutting < TIMEOUT_TO_CUT)
-		  {
-			  delay_for_cutting++;
-		  }
+		  delay_for_cutting_buttons++;
 	  }
-  }
 
-  /*if (is_move == 1)
-  {
-	 if (timeout_for_ramp < INTERVAL_FOR_RAMP)
-	 {
-		 timeout_for_ramp++;
-	 }
-	 if (time_for_change_ramp < TIME_FOR_CHANGE_RAMP)
-	 {
-		 time_for_change_ramp++;
-	 }
-  }*/
+	  if (delay_for_cutting < TIMEOUT_TO_CUT)
+	  {
+		  delay_for_cutting++;
+	  }
+	}
 
- if (print_real_coord_time < TIMEOUT_PRINT_REAL)
- {
+	if (print_real_coord_time < TIMEOUT_PRINT_REAL)
+	{
 	 print_real_coord_time++;
- }
+	}
+
+	if (back_forward_button_timeout < BACK_FORWARD_BUTTON_PRESSED_TIME)
+	{
+		back_forward_button_timeout++;
+	}
   /* USER CODE END TIM2_IRQn 0 */
   HAL_TIM_IRQHandler(&htim2);
   /* USER CODE BEGIN TIM2_IRQn 1 */

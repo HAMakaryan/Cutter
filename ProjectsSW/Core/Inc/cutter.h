@@ -33,8 +33,8 @@
 #define ROW_2				0xC0
 #define ROW_3				0x94
 #define ROW_4				0xD4
-#define R_COORD_POS			0x86
-#define S_COORD_POS			0xC6
+#define R_COORD_POS			0x81
+#define S_COORD_POS			0xD5
 #define REAL				1
 #define	SET					2
 
@@ -83,7 +83,7 @@
 
 #define MAX_SPEED	2420
 #define MID_SPEED	1600
-#define MIN_SPEED   1420 //old 1410
+#define MIN_SPEED   1410
 
 #define EXTRA_COORD 	50		//lracucich tick araj gnalu hamar(tesoghakan dashtic sanr@ hervanum e)
 
@@ -98,53 +98,59 @@
 
 //#define MIN_DISTANCE_IN_TICK		1100		//minimum taracutyun@, voric cacri depqum minimum aragutyamb e sharjvelu
 
-
+#define BACK_FORWARD_BUTTON_PRESSED_TIME 2000	//2second
 
 typedef enum {
-	SELECT,
-	EDIT,
 	CALLIBRATION,
 	BRUSH_MOVE,
 	HAND_CATCH,
-	CHECK_PEDAL,
-	CUTTING
+	CUTTING,
+	MANUAL,
+	ENTER_SET_COORD,
+	BRUSH_MOVING,
+	EDIT_SET_COORD,
+	BRUSH_MOVE_WITH_BUTTONS,
+	AUTO,
+	MENU
 }system_mode_t;
 
 typedef enum {
-	MAIN_MENU_CMD = 0,
 	CALLIBRATION_CMD,
-	EDIT_MODE_CMD,
 	CUTTING_CMD,
 
 	REAL_CMD,
 	SET_CMD,
 	REAL_COORD_CMD,
 	SET_COORD_CMD,
-	CURRENT_SET_COORD_CMD,
+	MANUAL_MODE_CMD,
 	CURRENT_REAL_COORD_CMD,
-	ZERO_S_COORD_CMD,
-	ZERO_R_COORD_CMD,
-	MIN_2_ROW_CMD,
-	MAX_2_ROW_CMD,
-	MIN_1_ROW_CMD,
-	MAX_1_ROW_CMD,
-	SPACE_FOR_MAX_MIN_1_ROW_CMD,
-	SPACE_FOR_MAX_MIN_2_ROW_CMD,
-
-	ARE_YOU_SURE_CMD,
-	SPACE_2_ROW_CMD,
-	SPACE_3_ROW_CMD,
-	SPACE_4_ROW_CMD,
 
 	CUT_IS_DONE_CMD,
 	ALLOWED_CUTTING_CMD,
 	HAND_CATCHING_CMD,
 	BRUSH_MOVING_CMD,
-	ENCODER_VAL_CMD,
+	BRUSH_MOVE_WITH_BUTTONS_CMD,
 
-	SPEED_CMD
+	MENU_CMD,
+	CLEAR_ROW1_CMD,
+	CLEAR_2_ROW,
+	CLEAR_3_ROW,
+	AUTO_CMD
 
 } lcd_commands;
+
+typedef enum {
+
+	BRUSH_MOVING_ENDED = 1,
+	PRESSED_HASH_KEY_TWO_TIME,
+	REAL_SET_COORDS_DIFF_LOW,
+	PRESSED_BACK_KEY,
+	COORD_IS_NOT_CHANGED,
+	PEDAL_RELEASED,
+	HAND_CATCH_RELEASED,
+	FORWARD_BACK_BUTTONS_RELEASED
+
+} Ret_Values;
 
 void LCD_Init(uint8_t lcd_addr);
 void LCD_Write(uint8_t lcd_addr);
@@ -171,6 +177,7 @@ void Print_Current_Coord();
 void state_machine(void);
 void Main_Task(void);
 void Write_LCD_Buffer(char* buf, uint8_t size, uint8_t cursor);
+void send_messages_to_LCD(uint8_t system_mode, uint8_t *system_old_mode);
 
 char Convert_Key_to_Char(uint8_t key);
 uint8_t Get_Coord_Size(char* coord_arr, double coord);
@@ -181,20 +188,25 @@ uint16_t Read_Encoder(void);
 uint32_t Read_Coord(void);
 double Create_Number(char* buf);
 
-
 typedef struct
 {
 	uint8_t cut_cnt_for_st0;
 	uint8_t pedal_cnt_for_st0;
 	uint8_t hand_catch_cnt_for_st0;
+	uint8_t forward_cnt_for_st0;
+	uint8_t back_cnt_for_st0;
 
 	uint8_t cut_cnt_for_st1;
 	uint8_t pedal_cnt_for_st1;
 	uint8_t hand_catch_cnt_for_st1;
+	uint8_t forward_cnt_for_st1;
+	uint8_t back_cnt_for_st1;
 
 	uint8_t cut_is_pressed;
 	uint8_t pedal_is_pressed;
 	uint8_t hand_catch_is_pressed;
+	uint8_t forward_is_pressed;
+	uint8_t back_is_pressed;
 
 } Input_State;
 

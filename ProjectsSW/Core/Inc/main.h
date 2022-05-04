@@ -29,7 +29,6 @@ extern "C" {
 
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f7xx_hal.h"
-#include "stm32f7xx_hal.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -159,14 +158,10 @@ void Error_Handler(void);
 #define TMS_GPIO_Port GPIOA
 #define TCK_Pin GPIO_PIN_14
 #define TCK_GPIO_Port GPIOA
-#define in_1_Pin GPIO_PIN_3
-#define in_1_GPIO_Port GPIOD
-#define in_2_Pin GPIO_PIN_4
-#define in_2_GPIO_Port GPIOD
-#define m_het_Pin GPIO_PIN_5
-#define m_het_GPIO_Port GPIOD
-#define m_araj_Pin GPIO_PIN_6
-#define m_araj_GPIO_Port GPIOD
+#define Move_Brush_Back_Pin GPIO_PIN_5
+#define Move_Brush_Back_GPIO_Port GPIOD
+#define Move_Brush_Forward_Pin GPIO_PIN_6
+#define Move_Brush_Forward_GPIO_Port GPIOD
 #define RMII_TX_EN_Pin GPIO_PIN_11
 #define RMII_TX_EN_GPIO_Port GPIOG
 #define RMII_TXD0_Pin GPIO_PIN_13

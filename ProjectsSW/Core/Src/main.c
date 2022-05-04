@@ -20,15 +20,10 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "cmsis_os.h"
-#include "adc.h"
-#include "can.h"
 #include "dac.h"
-#include "eth.h"
 #include "i2c.h"
 #include "rtc.h"
-#include "spi.h"
 #include "tim.h"
-#include "usart.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -222,29 +217,20 @@ static void Read_Real_Coord()
 static void Print_Initial_Status()
 {
 	LCD_Init(LCD_ADDR);
-	char buf[10];
+	/*char buf[10];
 	sprintf(buf, "%6.1f", real_coord);
-	for (int i = 0; i < strlen(buf); ++i)
-	{
-	  if (buf[i] == 0x20)
-	  {
-		  buf[i] = '0';
-	  }
-	}
-	LCD_SendCommand(LCD_ADDR, 0x80);
-	LCD_SendString(LCD_ADDR, "Real  ");
+	LCD_SendCommand(LCD_ADDR, ROW_1);
+	LCD_SendString(LCD_ADDR, "R                   ");
+	LCD_SendCommand(LCD_ADDR, R_COORD_POS);
 	LCD_SendString(LCD_ADDR, buf);
-
-	LCD_SendCommand(LCD_ADDR, 0xC0);
-	LCD_SendString(LCD_ADDR, "Set   ");
-	LCD_SendString(LCD_ADDR, buf);
-
-	LCD_SendCommand(LCD_ADDR, 0xD4);
-	LCD_SendString(LCD_ADDR, " *-Edit #-Cut C-Cal ");
+	LCD_SendCommand(LCD_ADDR, ROW_3);
+	LCD_SendString(LCD_ADDR, "*-Auto              ");
+	LCD_SendCommand(LCD_ADDR, ROW_4);
+	LCD_SendString(LCD_ADDR, "S             A-Menu");*/
 }
 /* USER CODE END 4 */
 
-/**
+ /**
   * @brief  Period elapsed callback in non blocking mode
   * @note   This function is called  when TIM2 interrupt took place, inside
   * HAL_TIM_IRQHandler(). It makes a direct call to HAL_IncTick() to increment

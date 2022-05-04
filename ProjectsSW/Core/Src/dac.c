@@ -1,8 +1,8 @@
 /**
   ******************************************************************************
-  * File Name          : DAC.c
-  * Description        : This file provides code for the configuration
-  *                      of the DAC instances.
+  * @file    dac.c
+  * @brief   This file provides code for the configuration
+  *          of the DAC instances.
   ******************************************************************************
   * @attention
   *
@@ -29,8 +29,16 @@ DAC_HandleTypeDef hdac;
 /* DAC init function */
 void MX_DAC_Init(void)
 {
+
+  /* USER CODE BEGIN DAC_Init 0 */
+
+  /* USER CODE END DAC_Init 0 */
+
   DAC_ChannelConfTypeDef sConfig = {0};
 
+  /* USER CODE BEGIN DAC_Init 1 */
+
+  /* USER CODE END DAC_Init 1 */
   /** DAC Initialization
   */
   hdac.Instance = DAC;
@@ -46,6 +54,9 @@ void MX_DAC_Init(void)
   {
     Error_Handler();
   }
+  /* USER CODE BEGIN DAC_Init 2 */
+
+  /* USER CODE END DAC_Init 2 */
 
 }
 

@@ -1,7 +1,4 @@
-*.log
-*.launch
-
 Debug/
 .settings/
 Release/
-Fragments/
+
