@@ -102,12 +102,12 @@ void Error_Handler(void);
 #define Cutting_Buttons_Allow_GPIO_Port GPIOE
 #define Hand_Catch_Pin GPIO_PIN_9
 #define Hand_Catch_GPIO_Port GPIOE
-#define Brush_Forward_Pin GPIO_PIN_12
-#define Brush_Forward_GPIO_Port GPIOE
+#define Brush_Back_Pin GPIO_PIN_12
+#define Brush_Back_GPIO_Port GPIOE
 #define Cutting_Pin GPIO_PIN_13
 #define Cutting_GPIO_Port GPIOE
-#define Brush_Back_Pin GPIO_PIN_14
-#define Brush_Back_GPIO_Port GPIOE
+#define Brush_Forward_Pin GPIO_PIN_14
+#define Brush_Forward_GPIO_Port GPIOE
 #define Brush_Lock_Pin GPIO_PIN_15
 #define Brush_Lock_GPIO_Port GPIOE
 #define DB0_Pin GPIO_PIN_10

@@ -170,115 +170,111 @@ void StartTask02(void *argument)
 	  uint8_t val = 0;
 	  if(xQueueReceive(myQueue01Handle, &val, 0) == pdTRUE )
 	  {
-		   if (val == SET_COORD_CMD) {
+		  switch(val)
+		  {
+			case CURSOR_BLINKING_OFF:
+				LCD_SendCommand(LCD_ADDR,0x0C);
+			break;
+
+			case CURSOR_BLINKING_ON:
+				LCD_SendCommand(LCD_ADDR,0x0F);
+			break;
+
+			case SET_CMD:
+				LCD_SendCommand(LCD_ADDR,ROW_2+3);
+				LCD_SendString(LCD_ADDR, " #-Save  ");
+				LCD_SendCommand(LCD_ADDR,ROW_3+3);
+				LCD_SendString(LCD_ADDR, " *-Del");
+				LCD_SendCommand(LCD_ADDR,ROW_4);
+				LCD_SendString(LCD_ADDR, "S             B-Back");
+			break;
+
+			case SET_COORD_CMD:
 				LCD_SendCommand(LCD_ADDR, S_COORD_POS);
 				Write_LCD_Buffer(coord_array, COORD_SIZE, 0xDA);
 				LCD_SendCommand(LCD_ADDR,ROW_4);
-				LCD_SendCommand(LCD_ADDR,0x0F);	//Cursor blinking
-		   }
-		   if (val == MANUAL_MODE_CMD)
-		   {
-			    LCD_SendCommand(LCD_ADDR, ROW_1+14);
-			   	LCD_SendString(LCD_ADDR, "Manual");
+			break;
+
+			case CURRENT_REAL_COORD_CMD:
+				LCD_SendCommand(LCD_ADDR, R_COORD_POS);
+				double temp_real_coord = real_coord;
+				char temp_coord[7];
+				sprintf(temp_coord, "%6.1f", temp_real_coord);
+				LCD_SendString(LCD_ADDR, temp_coord);
+			break;
+
+			case REAL_COORD_CMD:
+				LCD_SendCommand(LCD_ADDR, R_COORD_POS);
+				Write_LCD_Buffer(coord_array, COORD_SIZE, R_COORD_POS);
+				LCD_SendCommand(LCD_ADDR,ROW_1);
+			break;
+
+			case REAL_CMD:
+				LCD_SendCommand(LCD_ADDR, ROW_1);
+				LCD_SendString(LCD_ADDR, "R                   ");
+			break;
+
+			case MANUAL_MODE_CMD:
+				LCD_SendCommand(LCD_ADDR, ROW_1+14);
+				LCD_SendString(LCD_ADDR, "Manual");
 				LCD_SendCommand(LCD_ADDR,ROW_4);
 				LCD_SendString(LCD_ADDR, "S      *-Auto D-Menu");
-				LCD_SendCommand(LCD_ADDR,0x0C);	//Cursor blinking off
-		   }
-		   if (val == BRUSH_MOVING_CMD)
-		   {
-			   LCD_SendCommand(LCD_ADDR,ROW_4);
-			   LCD_SendString(LCD_ADDR, "S       Brush Moving");
-			   LCD_SendCommand(LCD_ADDR,0x0C);	//Cursor blinking off
-		   }
-		   if (val == HAND_CATCHING_CMD)
-		   {
-			   LCD_SendCommand(LCD_ADDR,ROW_4);
-			   LCD_SendString(LCD_ADDR, "S      Hand Catching");
-		   }
-		   if (val == BRUSH_MOVE_WITH_BUTTONS_CMD)
-		   {
-			   LCD_SendCommand(LCD_ADDR,ROW_4);
-			   LCD_SendString(LCD_ADDR, "S       Brush Moving");
-		   }
-		   if (val == CURRENT_REAL_COORD_CMD)
-		   {
-			   LCD_SendCommand(LCD_ADDR, R_COORD_POS);
-			   double temp_real_coord = real_coord;
-			   char temp_coord[7];
-			   sprintf(temp_coord, "%6.1f", temp_real_coord);
-			   LCD_SendString(LCD_ADDR, temp_coord);
-		   }
-		   if (val == REAL_COORD_CMD)
-		   {
-			   LCD_SendCommand(LCD_ADDR, R_COORD_POS);
-			   Write_LCD_Buffer(coord_array, COORD_SIZE, R_COORD_POS);
-			   LCD_SendCommand(LCD_ADDR,ROW_1);
-			   LCD_SendCommand(LCD_ADDR,0x0F);	//Cursor blinking
-		   }
-		   if (val == CALLIBRATION_CMD)
-		   {
-			    LCD_SendCommand(LCD_ADDR, ROW_1+14);
-			    LCD_SendString(LCD_ADDR, "Callib");
-			    LCD_SendCommand(LCD_ADDR,ROW_2+3);
+				LCD_SendCommand(LCD_ADDR,ROW_4+1);
+			break;
+
+			case BRUSH_MOVING_CMD:
+				LCD_SendCommand(LCD_ADDR,ROW_4);
+				LCD_SendString(LCD_ADDR, "S       Brush Moving");
+			break;
+
+			case HAND_CATCHING_CMD:
+				LCD_SendCommand(LCD_ADDR,ROW_4);
+				LCD_SendString(LCD_ADDR, "S      Hand Catching");
+			break;
+
+			case BRUSH_MOVE_WITH_BUTTONS_CMD:
+				LCD_SendCommand(LCD_ADDR,ROW_4);
+				LCD_SendString(LCD_ADDR, "S       Brush Moving");
+			break;
+
+			case CALLIBRATION_CMD:
+				LCD_SendCommand(LCD_ADDR, ROW_1+14);
+				LCD_SendString(LCD_ADDR, "Callib");
+				LCD_SendCommand(LCD_ADDR,ROW_2+3);
 				LCD_SendString(LCD_ADDR, " #-Save  ");
 				LCD_SendCommand(LCD_ADDR,ROW_3+3);
 				LCD_SendString(LCD_ADDR, " *-Del");
 				LCD_SendCommand(LCD_ADDR,ROW_4);
 				LCD_SendString(LCD_ADDR, "S             B-Back");
 				LCD_SendCommand(LCD_ADDR,ROW_1);
-				LCD_SendCommand(LCD_ADDR,0x0F);	//Cursor blinking
-		   }
-		   if (val == MENU_CMD)
-		   {
-			    LCD_SendCommand(LCD_ADDR, ROW_1+14);
+			break;
+
+			case MENU_CMD:
+				LCD_SendCommand(LCD_ADDR, ROW_1+14);
 				LCD_SendString(LCD_ADDR, "  Menu");
 				LCD_SendCommand(LCD_ADDR,ROW_2+3);
 				LCD_SendString(LCD_ADDR, " C-Callib");
 				LCD_SendCommand(LCD_ADDR,ROW_4);
 				LCD_SendString(LCD_ADDR, "S             B-Back");
-		   }
-		   if (val == REAL_CMD)
-		   {
-			   LCD_SendCommand(LCD_ADDR, ROW_1);
-			   LCD_SendString(LCD_ADDR, "R                   ");
-		   }
-		   if (val == SET_CMD)
-		   {
-			    LCD_SendCommand(LCD_ADDR,ROW_2+3);
-			    LCD_SendString(LCD_ADDR, " #-Save  ");
-			    LCD_SendCommand(LCD_ADDR,ROW_3+3);
-			    LCD_SendString(LCD_ADDR, " *-Del");
+			break;
+
+			case CUTTING_CMD:
 				LCD_SendCommand(LCD_ADDR,ROW_4);
-				LCD_SendString(LCD_ADDR, "S             B-Back");
-		   }
-		   if (val == CLEAR_2_ROW)
-		   {
-			   LCD_SendCommand(LCD_ADDR, ROW_2);
-			   LCD_SendString(LCD_ADDR, "                    ");
-		   }
-		   if (val == CLEAR_3_ROW)
-		   {
-			   LCD_SendCommand(LCD_ADDR, ROW_3);
-			   LCD_SendString(LCD_ADDR, "                    ");
-		   }
-		   if (val == CUTTING_CMD)
-		   {
-			   LCD_SendCommand(LCD_ADDR,ROW_4);
-			   LCD_SendString(LCD_ADDR, "S            Cutting");
-		   }
-		   if (val == CUT_IS_DONE_CMD)
-		   {
-			   LCD_SendCommand(LCD_ADDR,ROW_4);
-			   LCD_SendString(LCD_ADDR, "S        Cut is done");
-		   }
-		   if (val == ALLOWED_CUTTING_CMD)
-		   {
-			   LCD_SendCommand(LCD_ADDR,ROW_4);
-			   LCD_SendString(LCD_ADDR, "S    Allowed cutting");
-		   }
-		   if (val == AUTO_CMD)
-		   {
-			    LCD_SendCommand(LCD_ADDR, ROW_1+13);
+				LCD_SendString(LCD_ADDR, "S            Cutting");
+			break;
+
+			case CUT_IS_DONE_CMD:
+				LCD_SendCommand(LCD_ADDR,ROW_4);
+				LCD_SendString(LCD_ADDR, "S        Cut is done");
+			break;
+
+			case ALLOWED_CUTTING_CMD:
+				LCD_SendCommand(LCD_ADDR,ROW_4);
+				LCD_SendString(LCD_ADDR, "S    Allowed cutting");
+			break;
+
+			case AUTO_CMD:
+				LCD_SendCommand(LCD_ADDR, ROW_1+13);
 				LCD_SendString(LCD_ADDR, "A      ");
 				LCD_SendCommand(LCD_ADDR,ROW_2+13);
 				LCD_SendString(LCD_ADDR, "B      ");
@@ -289,13 +285,34 @@ void StartTask02(void *argument)
 				LCD_SendCommand(LCD_ADDR,ROW_4+13);
 				LCD_SendString(LCD_ADDR, "D      ");
 
-			    LCD_SendCommand(LCD_ADDR, ROW_1+8);
+				LCD_SendCommand(LCD_ADDR, ROW_1+8);
 				LCD_SendString(LCD_ADDR, "Auto");
 				LCD_SendCommand(LCD_ADDR,ROW_2+3);
-			    LCD_SendString(LCD_ADDR, " #-Start");
+				LCD_SendString(LCD_ADDR, " #-Start");
 				LCD_SendCommand(LCD_ADDR,ROW_3+3);
 				LCD_SendString(LCD_ADDR, " *-Manual");
-		   }
+			break;
+
+			case GO_TO_CMD:
+				LCD_SendCommand(LCD_ADDR,ROW_2+3);
+				LCD_SendString(LCD_ADDR, " #-Go to ");
+			break;
+
+			case SAVE_CMD:
+				LCD_SendCommand(LCD_ADDR,ROW_2+3);
+				LCD_SendString(LCD_ADDR, " #-Save  ");
+			break;
+
+			case CLEAR_2_ROW:
+				LCD_SendCommand(LCD_ADDR, ROW_2);
+				LCD_SendString(LCD_ADDR, "                    ");
+			break;
+
+			case CLEAR_3_ROW:
+				LCD_SendCommand(LCD_ADDR, ROW_3);
+				LCD_SendString(LCD_ADDR, "                    ");
+			break;
+		  }
 	  }
 	  osDelay(1);
   }

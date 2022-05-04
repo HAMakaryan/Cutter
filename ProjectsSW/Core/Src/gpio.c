@@ -69,7 +69,7 @@ void MX_GPIO_Init(void)
                           |DB5_Pin|DB1_Pin|DB2_Pin|LD2_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOE, Cutting_Buttons_Allow_Pin|Brush_Forward_Pin|Cutting_Pin|Brush_Back_Pin
+  HAL_GPIO_WritePin(GPIOE, Cutting_Buttons_Allow_Pin|Brush_Back_Pin|Cutting_Pin|Brush_Forward_Pin
                           |Brush_Lock_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin Output Level */
@@ -131,7 +131,7 @@ void MX_GPIO_Init(void)
 
   /*Configure GPIO pins : PEPin PEPin PEPin PEPin
                            PEPin */
-  GPIO_InitStruct.Pin = Cutting_Buttons_Allow_Pin|Brush_Forward_Pin|Cutting_Pin|Brush_Back_Pin
+  GPIO_InitStruct.Pin = Cutting_Buttons_Allow_Pin|Brush_Back_Pin|Cutting_Pin|Brush_Forward_Pin
                           |Brush_Lock_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;

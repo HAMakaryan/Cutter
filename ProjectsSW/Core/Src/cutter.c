@@ -18,27 +18,27 @@
 #include "task.h"
 #include "queue.h"
 
-extern I2C_HandleTypeDef hi2c1;
-extern UART_HandleTypeDef huart3;
-extern RTC_HandleTypeDef hrtc;
-extern TIM_HandleTypeDef htim4;
-extern DAC_HandleTypeDef hdac;
+static uint8_t coord_size = 0;
+static uint8_t mode = MANUAL;
 
-uint8_t lcd_buf_length = 0;
-uint8_t lcd_write_pnt = 0;
-uint8_t lcd_read_pnt = 0;
-uint8_t lcd_timeout = 0;
-uint8_t completed = 1;
-uint8_t data_arr[4];
-uint16_t lcd_ring_buffer[LCD_BUF_SIZE];
+static uint8_t lcd_buf_length = 0;
+static uint8_t lcd_write_pnt = 0;
+static uint8_t lcd_read_pnt = 0;
+static uint8_t pos[ROW_SIZE] = { 1, 2, 4, 8 };
+static uint8_t keypad_buf_length = 0;
+static uint8_t keypad_wr_pnt = 0;
+static uint8_t keypad_rd_pnt = 0;
+static char keypad_buffer[KEYPAD_BUF_SIZE];
 
-uint8_t keypad_timeout = 0;
-uint8_t input_timeout = 0;
-uint8_t pos[ROW_SIZE] = { 1, 2, 4, 8 };
-uint8_t keypad_buf_length = 0;
-uint8_t keypad_wr_pnt = 0;
-uint8_t keypad_rd_pnt = 0;
-char keypad_buffer[KEYPAD_BUF_SIZE];
+static uint8_t state = IDLE;
+static uint8_t new_pressed_key = 0;
+static uint8_t old_pressed_key = 0;
+static uint8_t debounce = 0;
+static uint8_t row_key = 0;
+static uint8_t col_key = 0;
+
+static uint8_t direction = 0;
+static uint8_t arrange_out = 0;
 
 GPIO_TypeDef *row_gpio_port[ROW_SIZE] = { Row0_GPIO_Port, Row1_GPIO_Port,
 Row2_GPIO_Port, Row3_GPIO_Port };
@@ -47,15 +47,10 @@ Col2_GPIO_Port, Col3_GPIO_Port };
 uint16_t row_gpio_pin[ROW_SIZE] = { Row0_Pin, Row1_Pin, Row2_Pin, Row3_Pin };
 uint16_t col_gpio_pin[COL_SIZE] = { Col0_Pin, Col1_Pin, Col2_Pin, Col3_Pin };
 
-uint8_t state = IDLE;
-uint8_t new_pressed_key = 0;
-uint8_t old_pressed_key = 0;
-uint8_t debounce = 0;
-uint8_t row_key = 0;
-uint8_t col_key = 0;
+uint8_t lcd_timeout = 0;
+uint8_t keypad_timeout = 0;
+uint8_t input_timeout = 0;
 
-uint8_t direction = 0;
-uint8_t arrange_out = 0;
 int32_t encoder_value = 0;
 int32_t previous_encoder_value = 0;
 Input_State input_state;
@@ -67,6 +62,11 @@ uint16_t back_forward_button_timeout = 0;
 char coord_array[COORD_SIZE];
 double set_coord = 0;
 
+extern I2C_HandleTypeDef hi2c1;
+extern UART_HandleTypeDef huart3;
+extern RTC_HandleTypeDef hrtc;
+extern TIM_HandleTypeDef htim4;
+extern DAC_HandleTypeDef hdac;
 extern osMessageQueueId_t myQueue01Handle;
 extern double real_coord;
 ///////////////////////////////////////////////////////////////////////////////
@@ -564,9 +564,9 @@ uint8_t Check_Coord_and_Get_Ticks(float coord) {
 
 	//Defines direction
 	if (tick_diff < 0) {
-		direction = FORWARD;
-	} else {
 		direction = BACK;
+	} else {
+		direction = FORWARD;
 	}
 	return 0;
 }
@@ -574,12 +574,11 @@ uint8_t Check_Coord_and_Get_Ticks(float coord) {
 uint8_t debug = 0;
 uint8_t pressed_count = 0;
 uint8_t queue_var = 0;
+uint8_t pressed_hash_count = 0;
 
 uint8_t Modify_Coord(char *coord_array, double *coord, double coord_pr_val,
 		char key) {
-	static uint8_t pressed_hash_count = 0;
 	static double temp_coord = 0;
-	static uint8_t coord_size = 0;
 
 	if (key == 'B') {
 		*coord = coord_pr_val;
@@ -631,6 +630,13 @@ uint8_t Modify_Coord(char *coord_array, double *coord, double coord_pr_val,
 		} else if (pressed_hash_count == 1)
 		{
 			pressed_hash_count = 0;
+			if (mode == EDIT_SET_COORD)
+			{
+				queue_var = SAVE_CMD;
+				xQueueSend(myQueue01Handle, (void* ) &queue_var, 10);
+			}
+			queue_var = CURSOR_BLINKING_ON;
+			xQueueSend(myQueue01Handle, (void* ) &queue_var, 10);
 		}
 	} else if (key == '#') {
 
@@ -670,6 +676,13 @@ uint8_t Modify_Coord(char *coord_array, double *coord, double coord_pr_val,
 				char temp_array[7];
 				coord_size = Get_Coord_Size(temp_array, temp_coord);
 			}
+			if (mode == EDIT_SET_COORD)
+			{
+				queue_var = GO_TO_CMD;
+				xQueueSend(myQueue01Handle, (void* ) &queue_var, 10);
+			}
+			queue_var = CURSOR_BLINKING_OFF;
+			xQueueSend(myQueue01Handle, (void* ) &queue_var, 10);
 		}
 		if (pressed_hash_count == 2) {
 			pressed_hash_count = 0;
@@ -834,10 +847,10 @@ void Print_Current_Coord() {
 }
 
 uint8_t Get_Status(uint8_t dir) {
-	if ((dir == FORWARD) && (encoder_value >= HARD_LIMIT_UP_IN_TICK )) {
+	if ((dir == BACK) && (encoder_value >= HARD_LIMIT_UP_IN_TICK )) {
 		arrange_out = 1;
 		return 1;
-	} else if ((dir == BACK) && (encoder_value <= LIMIT_DOWN_IN_TICK )) {
+	} else if ((dir == FORWARD) && (encoder_value <= LIMIT_DOWN_IN_TICK )) {
 		arrange_out = 1;
 		return 1;
 	}
@@ -883,7 +896,7 @@ uint8_t Process_Brush_Moving() {
 	//Starts DAC
 	HAL_DAC_Start(&hdac, DAC_CHANNEL_1);
 
-	if (direction == FORWARD) //tesoghakan dashtic hervanum e ays depqum
+	if (direction == BACK) //tesoghakan dashtic sanr@ hervanum e ays depqum
 	{
 		uint8_t temp = 0;
 
@@ -900,18 +913,18 @@ uint8_t Process_Brush_Moving() {
 			temp = 0;
 		}
 
-		Set_Inverter(FORWARD, speed);
+		Set_Inverter(BACK, speed);
 
 		while (encoder_value < (set_tick + EXTRA_COORD)) {
 			if ((encoder_value >= (set_tick - 1500)) && (temp == 0)) //heranalu jamanak 1500
 					{
 				speed = MID_SPEED;
-				Set_Inverter(FORWARD, speed);
+				Set_Inverter(BACK, speed);
 				temp = 1;
 			}
 
 			Print_Current_Coord();	//print current real coord
-			if (Get_Status(FORWARD) == 1) {
+			if (Get_Status(BACK) == 1) {
 				break;
 			}
 		}
@@ -919,16 +932,16 @@ uint8_t Process_Brush_Moving() {
 
 		if (arrange_out == 0) {
 			speed = MIN_SPEED;
-			Set_Inverter(BACK, speed);
+			Set_Inverter(FORWARD, speed);
 
 			while (encoder_value > (set_tick + DELTA)) {
 				Print_Current_Coord();	//print current real coord
-				if (Get_Status(BACK) == 1) {
+				if (Get_Status(FORWARD) == 1) {
 					break;
 				}
 			}
 		}
-	} else if (direction == BACK) {
+	} else if (direction == FORWARD) {	//ays depqum sanr@ motenum e mez
 		uint8_t temp = 0;
 
 		if (tick_difference < 417) {
@@ -943,24 +956,24 @@ uint8_t Process_Brush_Moving() {
 			speed = MAX_SPEED;
 			temp = 0;
 		}
-		Set_Inverter(BACK, speed);
+		Set_Inverter(FORWARD, speed);
 
 		while (encoder_value > (set_tick + DELTA)) {
 			if ((encoder_value <= (set_tick + 100)) && (temp == 1)) {
 				speed = MIN_SPEED;
-				Set_Inverter(BACK, speed);
+				Set_Inverter(FORWARD, speed);
 				temp = 2;
 
 			} else if ((encoder_value <= (set_tick + 100 + 1500))
 					&& (temp == 0)) //motenalu jamanak 1500 + 100
 					{
 				speed = MID_SPEED;
-				Set_Inverter(BACK, speed);
+				Set_Inverter(FORWARD, speed);
 				temp = 1;
 			}
 
 			Print_Current_Coord();	//print current real coord
-			if (Get_Status(BACK) == 1) {
+			if (Get_Status(FORWARD) == 1) {
 				break;
 			}
 		}
@@ -981,8 +994,6 @@ uint8_t Process_Brush_Moving() {
 	Save_Coord(encoder_value);
 	//Prints real coordinate to LCD
 	Print_Coord(real_coord, REAL);
-	//queue_var = SPACE_4_ROW_CMD;
-	//xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
 
 	return BRUSH_MOVING_ENDED;
 }
@@ -998,7 +1009,7 @@ uint32_t Process_Brush_Moving_With_Buttons(uint8_t direction) {
 	HAL_DAC_Start(&hdac, DAC_CHANNEL_1);
 	speed = MID_SPEED;
 
-	if (direction == FORWARD) //tesoghakan dashtic hervanum e ays depqum
+	if (direction == FORWARD)
 	{
 		Set_Inverter(FORWARD, speed);
 
@@ -1056,8 +1067,6 @@ uint32_t Process_Brush_Moving_With_Buttons(uint8_t direction) {
 	Save_Coord(encoder_value);
 	//Prints real coordinate to LCD
 	Print_Coord(real_coord, REAL);
-	//queue_var = SPACE_4_ROW_CMD;
-	//xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
 
 	return BRUSH_MOVING_ENDED;
 }
@@ -1207,7 +1216,6 @@ uint8_t Process_Cutting() {
 	if (input_state.pedal_is_pressed == 1) {
 
 		pedal_is_pressed = 1;
-		Lock_Handle();
 		Air_Out_Off();
 
 		if (delay_for_cutting_buttons == TIMEOUT_TO_ACTIVATE_CUTTING_BUTTON) {
@@ -1256,7 +1264,6 @@ uint8_t Process_Cutting() {
 			}
 		}
 	} else {
-		Unlock_Handle();
 
 		if (pedal_is_pressed == 1) {
 			old_temp = temp = 0;
@@ -1265,8 +1272,6 @@ uint8_t Process_Cutting() {
 			delay_for_cutting = 0;
 			Cutting_Button_Off();
 			Air_Out_On();
-			//queue_var = SPACE_4_ROW_CMD;
-			//xQueueSend(myQueue01Handle,( void * ) &queue_var, 10);
 
 			return PEDAL_RELEASED;
 		}
@@ -1303,6 +1308,7 @@ uint8_t Process_Hand_Catching() {
 	} else {
 		if (hand_catch_detected == 1) {
 			hand_catch_detected = 0;
+			Lock_Handle();
 			Brush_Lock();
 			real_coord = (double) encoder_value * ONE_ROTATION_VAL
 					/ ONE_ROTATION_TICK;
@@ -1321,14 +1327,9 @@ uint8_t Process_Hand_Catching() {
 ///////////////////////////////////////////////////////////////////////////////
 //								Main Task									 //
 ///////////////////////////////////////////////////////////////////////////////
-
-uint8_t data = 0;
-
 void Main_Task() {
 	state_machine();
 }
-
-
 
 void state_machine()
 {
@@ -1336,7 +1337,8 @@ void state_machine()
 	static char key = 0;
 	static double previous_coord = 0;
 	static uint8_t old_mode = 0;
-	static uint8_t mode = MANUAL;
+
+	static uint8_t mode_from = MANUAL;
 
 	if (input_timeout == INPUT_TIMEOUT)
 	{
@@ -1344,11 +1346,6 @@ void state_machine()
 		Read_Inputs();
 	}
 
-	if (old_mode != mode && mode == MANUAL)
-	{
-		Lock_Handle();
-		Brush_Lock();
-	}
 	send_messages_to_LCD(mode, &old_mode);
 
 	switch (mode)
@@ -1421,6 +1418,7 @@ void state_machine()
 					}
 				}
 			}
+			mode_from = MANUAL;
 			break;
 		}
 
@@ -1444,6 +1442,7 @@ void state_machine()
 				mode = MANUAL;
 			}
 			break;
+
 		case EDIT_SET_COORD:
 		{
 			ret = Modify_Coord(coord_array, &set_coord, previous_coord, key);
@@ -1481,7 +1480,7 @@ void state_machine()
 		}
 		case BRUSH_MOVING:
 		{
-			//if board is powered and brush is unlocked
+			//if board is powered
 			if (HAL_GPIO_ReadPin(Power_In_GPIO_Port, Power_In_Pin) == 1)
 			{
 				ret = Process_Brush_Moving();
@@ -1506,45 +1505,93 @@ void state_machine()
 			ret = Process_Hand_Catching();
 			if (ret == HAND_CATCH_RELEASED)
 			{
-				mode = MANUAL;
+				mode = mode_from;
+				if (mode_from == CALLIBRATION)
+				{
+					previous_coord = real_coord;
+					coord_size = Get_Coord_Size(coord_array, real_coord);
+				}
 			}
 			break;
 		}
-
-		case CALLIBRATION:
-			if (key != 0)
-			{
-				queue_var = REAL_COORD_CMD;
-				xQueueSend(myQueue01Handle, (void* ) &queue_var, 10);
-			}
-			if (keypad_timeout == KEYPAD_TIMEOUT)
-			{
-				keypad_timeout = 0;
-				Read_Keypad();
-			}
-			key = Read_Pressed_Key();
-			ret = Modify_Coord(coord_array, &real_coord, previous_coord, key);
-
-			if ((ret == PRESSED_BACK_KEY) || (ret == PRESSED_HASH_KEY_TWO_TIME))
-			{
-				if (ret == PRESSED_HASH_KEY_TWO_TIME)
-				{
-					encoder_value = round((double)real_coord * ONE_ROTATION_TICK / ONE_ROTATION_VAL);
-					Save_Coord(encoder_value);
-					queue_var = REAL_COORD_CMD;
-					xQueueSend(myQueue01Handle, (void* ) &queue_var, 10);
-				}
-				mode = MANUAL;
-			}
-			break;
-
 		case BRUSH_MOVE_WITH_BUTTONS:
+		{
 			ret = Process_Brush_Moving_With_Buttons(direction);
 			if (ret == BRUSH_MOVING_ENDED)
 			{
-				mode = MANUAL;
+				mode = mode_from;
+				if (mode_from == CALLIBRATION)
+				{
+					previous_coord = real_coord;
+					coord_size = Get_Coord_Size(coord_array, real_coord);
+				}
 			}
 			break;
+		}
+		case CALLIBRATION:
+
+			// while is not pressed #, user can change real coord by hand catch or by buttons
+			if (pressed_hash_count == 0)
+			{
+				if (input_state.hand_catch_is_pressed == 1)
+				{
+					if ((input_state.forward_is_pressed == 0) && (input_state.back_is_pressed == 0))
+					{
+						Unlock_Handle();
+						Brush_Unlock();
+						mode = HAND_CATCH;
+					}
+
+				} else if (input_state.forward_is_pressed == 1)
+				{
+					if ((input_state.hand_catch_is_pressed == 0) && (input_state.back_is_pressed == 0))
+					{
+						direction = FORWARD;
+						mode = BRUSH_MOVE_WITH_BUTTONS;
+					}
+
+				} else if (input_state.back_is_pressed == 1)
+				{
+					if ((input_state.hand_catch_is_pressed == 0) && (input_state.forward_is_pressed == 0))
+					{
+						direction = BACK;
+						mode = BRUSH_MOVE_WITH_BUTTONS;
+					}
+				}
+			}
+
+			// if not pressed hand catch or move forward, back buttons, user can edit real coord
+			if ((input_state.hand_catch_is_pressed == 0) && (input_state.forward_is_pressed == 0)
+					&& (input_state.back_is_pressed == 0))
+			{
+				if (key != 0)
+				{
+					queue_var = REAL_COORD_CMD;
+					xQueueSend(myQueue01Handle, (void* ) &queue_var, 10);
+				}
+				if (keypad_timeout == KEYPAD_TIMEOUT)
+				{
+					keypad_timeout = 0;
+					Read_Keypad();
+				}
+				key = Read_Pressed_Key();
+				ret = Modify_Coord(coord_array, &real_coord, previous_coord, key);
+
+				if ((ret == PRESSED_BACK_KEY) || (ret == PRESSED_HASH_KEY_TWO_TIME))
+				{
+					if (ret == PRESSED_HASH_KEY_TWO_TIME)
+					{
+						encoder_value = round((double)real_coord * ONE_ROTATION_TICK / ONE_ROTATION_VAL);
+						Save_Coord(encoder_value);
+						queue_var = REAL_COORD_CMD;
+						xQueueSend(myQueue01Handle, (void* ) &queue_var, 10);
+					}
+					mode = MANUAL;
+				}
+			}
+			mode_from = CALLIBRATION;
+			break;
+
 		case AUTO:
 			if (keypad_timeout == KEYPAD_TIMEOUT)
 			{
@@ -1557,7 +1604,7 @@ void state_machine()
 				mode = MANUAL;
 			}
 			break;
-		}
+	}
 
 }
 
@@ -1570,6 +1617,12 @@ void send_messages_to_LCD(uint8_t system_mode, uint8_t *system_old_mode)
 			queue_var = CLEAR_3_ROW;
 			xQueueSend(myQueue01Handle, (void* ) &queue_var, 10);
 		}
+		if ((system_mode != MANUAL) && (system_mode != EDIT_SET_COORD) && (system_mode != CALLIBRATION))
+		{
+			queue_var = CURSOR_BLINKING_OFF;
+			xQueueSend(myQueue01Handle, (void* ) &queue_var, 10);
+		}
+
 		switch(system_mode)
 		{
 			case MANUAL:
@@ -1586,6 +1639,8 @@ void send_messages_to_LCD(uint8_t system_mode, uint8_t *system_old_mode)
 					xQueueSend(myQueue01Handle, (void* ) &queue_var, 10);
 				}
 				queue_var = MANUAL_MODE_CMD;
+				xQueueSend(myQueue01Handle, (void* ) &queue_var, 10);
+				queue_var = CURSOR_BLINKING_ON;
 				xQueueSend(myQueue01Handle, (void* ) &queue_var, 10);
 			break;
 
@@ -1604,22 +1659,32 @@ void send_messages_to_LCD(uint8_t system_mode, uint8_t *system_old_mode)
 			case HAND_CATCH:
 				queue_var = HAND_CATCHING_CMD;
 				xQueueSend(myQueue01Handle, (void* ) &queue_var, 10);
+				if (*system_old_mode == CALLIBRATION)
+				{
+					queue_var = CLEAR_2_ROW;
+					xQueueSend(myQueue01Handle, (void* ) &queue_var, 10);
+				}
 			break;
 
 			case BRUSH_MOVE_WITH_BUTTONS:
 				queue_var = BRUSH_MOVE_WITH_BUTTONS_CMD;
 				xQueueSend(myQueue01Handle, (void* ) &queue_var, 10);
+				if (*system_old_mode == CALLIBRATION)
+				{
+					queue_var = CLEAR_2_ROW;
+					xQueueSend(myQueue01Handle, (void* ) &queue_var, 10);
+				}
 			break;
 
 			case CALLIBRATION:
-				if (*system_old_mode == MENU)
+				if ((*system_old_mode == HAND_CATCH) || (*system_old_mode == BRUSH_MOVE_WITH_BUTTONS))
 				{
-					queue_var = REAL_CMD;
-					xQueueSend(myQueue01Handle, (void* ) &queue_var, 10);
-					queue_var = CURRENT_REAL_COORD_CMD;
+					queue_var = REAL_COORD_CMD;
 					xQueueSend(myQueue01Handle, (void* ) &queue_var, 10);
 				}
 				queue_var = CALLIBRATION_CMD;
+				xQueueSend(myQueue01Handle, (void* ) &queue_var, 10);
+				queue_var = CURSOR_BLINKING_ON;
 				xQueueSend(myQueue01Handle, (void* ) &queue_var, 10);
 			break;
 
