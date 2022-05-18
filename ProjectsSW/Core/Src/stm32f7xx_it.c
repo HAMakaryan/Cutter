@@ -67,6 +67,7 @@ extern uint8_t lcd_timeout;
 extern uint8_t encoder_time;
 extern uint16_t delay_for_cutting_buttons;
 extern uint16_t delay_for_cutting;
+extern uint16_t timeout_for_wait_ABCD;
 extern Input_State input_state;
 
 extern uint16_t print_real_coord_time;
@@ -213,6 +214,15 @@ void TIM2_IRQHandler(void)
 	{
 		back_forward_button_timeout++;
 	}
+
+	if (mode == WAIT_FOR_START)
+	{
+		if (timeout_for_wait_ABCD < TIMEOUT_FOR_WAIT_ABCD)
+		{
+			timeout_for_wait_ABCD++;
+		}
+	}
+
   /* USER CODE END TIM2_IRQn 0 */
   HAL_TIM_IRQHandler(&htim2);
   /* USER CODE BEGIN TIM2_IRQn 1 */

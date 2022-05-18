@@ -39,6 +39,7 @@
 #define	SET					2
 
 #define TIMEOUT_PRINT_REAL			1000
+#define TIMEOUT_FOR_WAIT_ABCD		60000
 
 #define IDLE	0
 #define ERROR 	1
@@ -111,7 +112,11 @@ typedef enum {
 	EDIT_SET_COORD,
 	BRUSH_MOVE_WITH_BUTTONS,
 	AUTO,
-	MENU
+	EDIT_SET_COORD_AUTO,
+	WAIT_FOR_START,
+	START,
+	MENU,
+	WAIT_FOR_CUTTING
 }system_mode_t;
 
 typedef enum {
@@ -140,7 +145,19 @@ typedef enum {
 	CLEAR_2_ROW,
 	CLEAR_3_ROW,
 
-	AUTO_CMD
+	AUTO_CMD,
+	ABCD_CMD,
+	A_CMD,
+	B_CMD,
+	C_CMD,
+	D_CMD,
+	EDIT_SET_COORD_CMD,
+	WAIT_FOR_START_CMD,
+	START_CMD,
+	WAIT_FOR_CUTTING_CMD,
+	COORD_ERROR_CMD,
+	BRUSH_MOVE_WITH_BUTTONS_CMD_AUTO,
+	HAND_CATCHING_CMD_AUTO,
 
 } lcd_commands;
 
@@ -153,7 +170,10 @@ typedef enum {
 	COORD_IS_NOT_CHANGED,
 	PEDAL_RELEASED,
 	HAND_CATCH_RELEASED,
-	FORWARD_BACK_BUTTONS_RELEASED
+	FORWARD_BACK_BUTTONS_RELEASED,
+	GO_BACK,
+	PRESSED_ABCD,
+	COORD_IS_NOT_ZERO,
 
 } Ret_Values;
 
@@ -181,8 +201,10 @@ void Print_Coord(double r_coord, uint8_t coord_name);
 void Print_Current_Coord();
 void state_machine(void);
 void Main_Task(void);
-void Write_LCD_Buffer(char* buf, uint8_t size, uint8_t cursor);
+void LCD_Write_Coord(char* buf);
 void send_messages_to_LCD(uint8_t system_mode, uint8_t *system_old_mode);
+void set_cursor_for_ABCD(void);
+void Read_Coords(void);
 
 char Convert_Key_to_Char(uint8_t key);
 uint8_t Get_Coord_Size(char* coord_arr, double coord);

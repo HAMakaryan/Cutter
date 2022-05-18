@@ -109,6 +109,7 @@ int main(void)
   /* USER CODE BEGIN 2 */
   //Reads real coord from backup register
   Read_Real_Coord();
+  Read_Coords();
   //Prints real and set coords to LCD
   Print_Initial_Status();
   //Inits 4x4 Keypad
