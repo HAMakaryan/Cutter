@@ -1052,8 +1052,7 @@ uint8_t Process_Brush_Moving() {
 		Set_Inverter(BACK, speed);
 
 		while (encoder_value < (set_tick + EXTRA_COORD)) {
-			if ((encoder_value >= (set_tick - 1500)) && (temp == 0)) //heranalu jamanak 1500
-					{
+			if ((encoder_value >= (set_tick - 1500)) && (temp == 0)) { //heranalu jamanak 1500
 				speed = MID_SPEED;
 				Set_Inverter(BACK, speed);
 				temp = 1;
@@ -1100,9 +1099,7 @@ uint8_t Process_Brush_Moving() {
 				Set_Inverter(FORWARD, speed);
 				temp = 2;
 
-			} else if ((encoder_value <= (set_tick + 100 + 1500))
-					&& (temp == 0)) //motenalu jamanak 1500 + 100
-					{
+			} else if ((encoder_value <= (set_tick + 1600)) && (temp == 0)) { //motenalu jamanak 1600
 				speed = MID_SPEED;
 				Set_Inverter(FORWARD, speed);
 				temp = 1;

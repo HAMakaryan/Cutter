@@ -203,7 +203,7 @@ void StartTask02(void *argument)
 						LCD_SendString(LCD_ADDR, "*-Back    ");
 					} else
 					{
-						LCD_SendString(LCD_ADDR, "          ");
+						LCD_SendString(LCD_ADDR, "*-Del     ");
 					}
 				}
 				LCD_SendCommand(LCD_ADDR, ROW_4);

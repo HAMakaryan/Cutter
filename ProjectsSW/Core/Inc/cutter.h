@@ -76,15 +76,15 @@
 //#define BACK_COEFFICIENT_2 0.2		//(encoder_value - set_tick) taracutyan 0.2 mas@ sharjvum e mid aragutyamb(BACK(tesoghakan dashtin motenum e sanr@))
 
 
-#define TIMEOUT_TO_ACTIVATE_CUTTING_BUTTON 	4000 // /5000 er
-#define TIMEOUT_TO_CUT 						1000 // /3000 er
+#define TIMEOUT_TO_ACTIVATE_CUTTING_BUTTON 	3000 // /4000 er
+#define TIMEOUT_TO_CUT 						500  // /1000 er
 
 #define	ONE_ROTATION_VAL	(double)11.985	//mm		//11.962 mek ptuyti arjeq@ milimetrov
 #define ONE_ROTATION_TICK	1000						//mek ptuyti depqum tickeri tiv@
 
 #define MAX_SPEED	2420
 #define MID_SPEED	1600
-#define MIN_SPEED   1410
+#define MIN_SPEED   1390	//1410 er
 
 #define EXTRA_COORD 	50		//lracucich tick araj gnalu hamar(tesoghakan dashtic sanr@ hervanum e)
 
