@@ -21,6 +21,7 @@
 uint8_t mode = MANUAL;
 uint8_t coord_size = 0;
 
+static uint8_t mode_from = MANUAL;
 static uint8_t coord_num_for_cursor = 0;
 static uint8_t lcd_buf_length = 0;
 static uint8_t lcd_write_pnt = 0;
@@ -76,6 +77,7 @@ uint16_t print_real_coord_time = 0;
 uint16_t back_forward_button_timeout = 0;
 static uint8_t curr_coord_num = 0;
 uint8_t is_changed_coord = 0;
+uint8_t is_pressed_number = 0;
 
 char coord_array[COORD_SIZE];
 double set_coord = 0;
@@ -567,7 +569,8 @@ uint8_t Check_Coord_and_Get_Ticks(double coord) {
 	int32_t tick_diff = encoder_value - set_tick;
 	tick_difference = abs(tick_diff);
 
-	if (abs(tick_diff) < 5) {
+	// 0.1 mm is 8.34 tick
+	if (abs(tick_diff) < 8) {
 		return REAL_SET_COORDS_DIFF_LOW;
 	}
 
@@ -611,6 +614,7 @@ uint8_t Modify_Coord(char *coord_array, double *coord, double coord_pr_val,
 			if (all_zero == 0) {
 				if (coord_size < COORD_SIZE) {
 					coord_size++;
+					is_pressed_number = 1;
 					for (uint8_t i = 0; i < COORD_SIZE; ++i) {
 						coord_array[i] = coord_array[i + 1];
 					}
@@ -631,71 +635,82 @@ uint8_t Modify_Coord(char *coord_array, double *coord, double coord_pr_val,
 				}
 				coord_array[0] = '0';
 			}
+			if ((mode == CALLIBRATION) && (coord_size == 0))
+			{
+				queue_var = ENTER_THE_CORRECT_COORDINATE_CMD;
+				xQueueSend(myQueue01Handle, (void* ) &queue_var, 10);
+			}
 		} else if (pressed_hash_count == 1)
 		{
 			pressed_hash_count = 0;
-			if (mode == EDIT_SET_COORD)
-			{
-				queue_var = SAVE_CMD;
-				xQueueSend(myQueue01Handle, (void* ) &queue_var, 10);
-			}
+
+			queue_var = SAVE_CMD;
+			xQueueSend(myQueue01Handle, (void* ) &queue_var, 10);
 			queue_var = CURSOR_BLINKING_ON;
+			xQueueSend(myQueue01Handle, (void* ) &queue_var, 10);
+			queue_var = MIN_MAX_DEL_CMD;
 			xQueueSend(myQueue01Handle, (void* ) &queue_var, 10);
 		}
 	} else if (key == '#') {
 
-		pressed_hash_count++;
+		if ((mode == EDIT_SET_COORD) || ((mode == CALLIBRATION) && (coord_size != 0)))
+		{
+			pressed_hash_count++;
 
-		if (pressed_hash_count == 1) {
+			if (pressed_hash_count == 1) {
 
-			//Creates number from collected digits
-			temp_coord = Create_Number(coord_array);
+				//Creates number from collected digits
+				temp_coord = Create_Number(coord_array);
 
-			if (temp_coord < LIMIT_DOWN || temp_coord > SOFT_LIMIT_UP) {
+				if ((temp_coord < LIMIT_DOWN) || (temp_coord > SOFT_LIMIT_UP)) {
 
-				char temp_buf[10];
+					if (temp_coord < LIMIT_DOWN) {
+						temp_coord = LIMIT_DOWN;
+						if (mode == EDIT_SET_COORD)
+						{
+							queue_var = MIN_COORD_CMD;
+							xQueueSend(myQueue01Handle, (void* ) &queue_var, 10);
+						} else
+						{
+							queue_var = MIN_COORD_CAL_CMD;
+							xQueueSend(myQueue01Handle, (void* ) &queue_var, 10);
+						}
 
-				if (temp_coord < LIMIT_DOWN) {
-					sprintf(temp_buf, "%6.1f", (double) LIMIT_DOWN);
-				} else if (temp_coord > SOFT_LIMIT_UP) {
-					sprintf(temp_buf, "%6.1f", (double) SOFT_LIMIT_UP);
-				}
-				for (int i = 0; i < sizeof(temp_buf); ++i) {
-					if (temp_buf[i] == 0x20) {
-						temp_buf[i] = '0';
+					} else if (temp_coord > SOFT_LIMIT_UP) {
+						temp_coord = SOFT_LIMIT_UP;
+						if (mode == EDIT_SET_COORD)
+						{
+							queue_var = MAX_COORD_CMD;
+							xQueueSend(myQueue01Handle, (void* ) &queue_var, 10);
+						} else
+						{
+							queue_var = MAX_COORD_CAL_CMD;
+							xQueueSend(myQueue01Handle, (void* ) &queue_var, 10);
+						}
 					}
+					coord_size = Get_Coord_Size(coord_array, temp_coord);
 				}
-				coord_array[0] = temp_buf[0];
-				coord_array[1] = temp_buf[1];
-				coord_array[2] = temp_buf[2];
-				coord_array[3] = temp_buf[3];
-				coord_array[4] = temp_buf[5];
-
-				if (temp_coord < LIMIT_DOWN) {
-					temp_coord = LIMIT_DOWN;
-
-				} else if (temp_coord > SOFT_LIMIT_UP) {
-					temp_coord = SOFT_LIMIT_UP;
+				if (mode == EDIT_SET_COORD)
+				{
+					queue_var = GO_TO_CMD;
+					xQueueSend(myQueue01Handle, (void* ) &queue_var, 10);
+				} else
+				{
+					queue_var = SAVE_AND_EXIT_CMD;
+					xQueueSend(myQueue01Handle, (void* ) &queue_var, 10);
 				}
-				char temp_array[7];
-				coord_size = Get_Coord_Size(temp_array, temp_coord);
-			}
-			if (mode == EDIT_SET_COORD)
-			{
-				queue_var = GO_TO_CMD;
+				queue_var = CURSOR_BLINKING_OFF;
 				xQueueSend(myQueue01Handle, (void* ) &queue_var, 10);
 			}
-			queue_var = CURSOR_BLINKING_OFF;
-			xQueueSend(myQueue01Handle, (void* ) &queue_var, 10);
-		}
-		if (pressed_hash_count == 2) {
-			pressed_hash_count = 0;
+			if (pressed_hash_count == 2) {
+				pressed_hash_count = 0;
 
-			*coord = temp_coord;
-			temp_coord = 0;
-			coord_size = 0;
+				*coord = temp_coord;
+				temp_coord = 0;
+				coord_size = 0;
 
-			return PRESSED_HASH_KEY_TWO_TIME;
+				return PRESSED_HASH_KEY_TWO_TIME;
+			}
 		}
 	}
 	return 0;
@@ -755,32 +770,20 @@ uint8_t Modify_Coord_Auto(char *coord_array, double *coord, char key)
 
 			if ((temp_coord < LIMIT_DOWN && temp_coord != 0.0) || (temp_coord > SOFT_LIMIT_UP)) {
 
-				char temp_buf[10];
-
-				if (temp_coord < LIMIT_DOWN) {
-					sprintf(temp_buf, "%6.1f", (double) LIMIT_DOWN);
-				} else if (temp_coord > SOFT_LIMIT_UP) {
-					sprintf(temp_buf, "%6.1f", (double) SOFT_LIMIT_UP);
-				}
-				for (int i = 0; i < sizeof(temp_buf); ++i) {
-					if (temp_buf[i] == 0x20) {
-						temp_buf[i] = '0';
-					}
-				}
-				coord_array[0] = temp_buf[0];
-				coord_array[1] = temp_buf[1];
-				coord_array[2] = temp_buf[2];
-				coord_array[3] = temp_buf[3];
-				coord_array[4] = temp_buf[5];
-
 				if (temp_coord < LIMIT_DOWN) {
 					temp_coord = LIMIT_DOWN;
+					queue_var = MIN_COORD_CMD;
+					xQueueSend(myQueue01Handle, (void* ) &queue_var, 10);
 
 				} else if (temp_coord > SOFT_LIMIT_UP) {
 					temp_coord = SOFT_LIMIT_UP;
+					queue_var = MAX_COORD_CMD;
+					xQueueSend(myQueue01Handle, (void* ) &queue_var, 10);
 				}
-				char temp_array[7];
-				coord_size = Get_Coord_Size(temp_array, temp_coord);
+				coord_size = Get_Coord_Size(coord_array, temp_coord);
+				queue_var = SET_COORD_CMD;
+				xQueueSend(myQueue01Handle, (void* ) &queue_var, 10);
+				HAL_Delay(1200);
 			}
 			*coord = temp_coord;
 			temp_coord = 0;
@@ -1111,8 +1114,14 @@ uint8_t Process_Brush_Moving() {
 			}
 		}
 	}
+	//skzbum sanr@ lock anel, heto sharjich@ kangnecnel
 	Brush_Lock();
 	Set_Inverter(STOP, 0);
+
+	//skzbum sharjich@ kangnecnel, heto sanr@ lock anel
+	//Set_Inverter(STOP, 0);
+	//Brush_Lock();
+
 	HAL_DAC_Stop(&hdac, DAC_CHANNEL_1);
 	set_debug_pins(0x00);
 
@@ -1131,7 +1140,7 @@ uint8_t Process_Brush_Moving() {
 	return BRUSH_MOVING_ENDED;
 }
 
-uint32_t Process_Brush_Moving_With_Buttons(uint8_t direction) {
+uint32_t Process_Brush_Moving_With_Buttons(uint8_t direction, uint8_t mode_from) {
 	print_real_coord_time = 0;
 	back_forward_button_timeout = 0;
 	arrange_out = 0;
@@ -1159,8 +1168,12 @@ uint32_t Process_Brush_Moving_With_Buttons(uint8_t direction) {
 				Set_Inverter(FORWARD, speed);
 			}
 			Print_Current_Coord();	//print current real coord
-			if (Get_Status(FORWARD) == 1) {
-				break;
+
+			if (mode_from != CALLIBRATION)
+			{
+				if (Get_Status(FORWARD) == 1) {
+					break;
+				}
 			}
 		}
 	} else if (direction == BACK) {
@@ -1179,8 +1192,11 @@ uint32_t Process_Brush_Moving_With_Buttons(uint8_t direction) {
 				Set_Inverter(BACK, speed);
 			}
 			Print_Current_Coord();	//print current real coord
-			if (Get_Status(BACK) == 1) {
-				break;
+			if (mode_from != CALLIBRATION)
+			{
+				if (Get_Status(BACK) == 1) {
+					break;
+				}
 			}
 		}
 	}
@@ -1421,13 +1437,15 @@ uint8_t Process_Cutting() {
 
 void Print_Coord(double r_coord, uint8_t coord_name) {
 	if (coord_name == REAL) {
-		queue_var = CURRENT_REAL_COORD_CMD;
-		xQueueSend(myQueue01Handle, (void* ) &queue_var, 10);
-
+		if (mode_from != CALLIBRATION)
+		{
+			queue_var = CURRENT_REAL_COORD_CMD;
+			xQueueSend(myQueue01Handle, (void* ) &queue_var, 10);
+		}
 	}
 }
 
-uint8_t Process_Hand_Catching() {
+uint8_t Process_Hand_Catching(uint8_t mode_from) {
 	static uint8_t hand_catch_detected = 0;
 
 	if (input_state.hand_catch_is_pressed == 1) {
@@ -1436,7 +1454,7 @@ uint8_t Process_Hand_Catching() {
 		if (print_real_coord_time == TIMEOUT_PRINT_REAL) {
 			print_real_coord_time = 0;
 			real_coord = (double) encoder_value * ONE_ROTATION_VAL
-					/ ONE_ROTATION_TICK;
+				/ ONE_ROTATION_TICK;
 			Print_Coord(real_coord, REAL);
 		}
 	} else {
@@ -1446,7 +1464,6 @@ uint8_t Process_Hand_Catching() {
 			Brush_Lock();
 			real_coord = (double) encoder_value * ONE_ROTATION_VAL
 					/ ONE_ROTATION_TICK;
-
 			//Prints real coordinate to LCD
 			Print_Coord(real_coord, REAL);
 			//Saves real coord to backup register
@@ -1519,7 +1536,6 @@ void state_machine()
 	static char key = 0;
 	static double previous_coord = 0;
 	static uint8_t old_mode = 0;
-	static uint8_t mode_from = MANUAL;
 	static uint8_t coord_num = 0;
 
 	if (input_timeout == INPUT_TIMEOUT)
@@ -1619,6 +1635,7 @@ void state_machine()
 				// keeps real coord
 				previous_coord = real_coord;
 				real_coord = 0;
+				is_pressed_number = 0;
 				memset(coord_array, '0', 6);
 				mode = CALLIBRATION;
 
@@ -1694,30 +1711,20 @@ void state_machine()
 
 		case HAND_CATCH:
 		{
-			ret = Process_Hand_Catching();
+			ret = Process_Hand_Catching(mode_from);
 			if (ret == HAND_CATCH_RELEASED)
 			{
 				mode = mode_from;
-				if (mode_from == CALLIBRATION)
-				{
-					previous_coord = real_coord;
-					coord_size = Get_Coord_Size(coord_array, real_coord);
-				}
 			}
 			break;
 		}
 
 		case BRUSH_MOVE_WITH_BUTTONS:
 		{
-			ret = Process_Brush_Moving_With_Buttons(direction);
+			ret = Process_Brush_Moving_With_Buttons(direction, mode_from);
 			if (ret == BRUSH_MOVING_ENDED)
 			{
 				mode = mode_from;
-				if (mode_from == CALLIBRATION)
-				{
-					previous_coord = real_coord;
-					coord_size = Get_Coord_Size(coord_array, real_coord);
-				}
 			}
 			break;
 		}
@@ -1771,6 +1778,13 @@ void state_machine()
 				key = Read_Pressed_Key();
 				ret = Modify_Coord(coord_array, &real_coord, previous_coord, key);
 
+				if (is_pressed_number == 1)
+				{
+					is_pressed_number = 0;
+					queue_var = SAVE_CMD;
+					xQueueSend(myQueue01Handle, (void* ) &queue_var, 10);
+				}
+
 				if ((ret == PRESSED_BACK_KEY) || (ret == PRESSED_HASH_KEY_TWO_TIME))
 				{
 					if (ret == PRESSED_HASH_KEY_TWO_TIME)
@@ -1779,6 +1793,9 @@ void state_machine()
 						Save_Coord(encoder_value);
 						queue_var = REAL_COORD_CMD;
 						xQueueSend(myQueue01Handle, (void* ) &queue_var, 10);
+					} else
+					{
+						real_coord = (double) encoder_value * ONE_ROTATION_VAL / ONE_ROTATION_TICK;
 					}
 					mode = MANUAL;
 				}
@@ -2065,20 +2082,24 @@ void state_machine()
 			if ((ret == PEDAL_RELEASED) && (is_cutting_done == 1))
 			{
 				is_cutting_done = 0;
-				curr_coord_num++;
-				if (curr_coord_num > 4)
+
+				// if coord count is 1, stays in WAIT_FOR_CUTTING mode, else goes to START mode
+				if ((coord_num == 1 && coord_B == 0 && coord_C == 0 && coord_D == 0)
+					|| (coord_num == 2 && coord_C == 0 && coord_D == 0)
+					|| (coord_num == 3 && coord_D == 0)
+					|| (coord_num == 4))
 				{
-					curr_coord_num = coord_num;
-				}
-				// if coord is not D, go to START mode, else stays WAIT_FOR_CUTTING_MODE
-				if (coord_num < 4)
-				{
-					mode = START;
-				} else
-				{
-					//if coord_num is 4, stays to this mode
 					queue_var = WAIT_FOR_CUTTING_CMD;
 					xQueueSend(myQueue01Handle, (void* ) &queue_var, 10);
+				} else
+				{
+					//increment coord number
+					curr_coord_num++;
+					if (curr_coord_num > 4)
+					{
+						curr_coord_num = coord_num;
+					}
+					mode = START;
 				}
 			} else if (ret == PEDAL_RELEASED)
 			{
@@ -2178,6 +2199,16 @@ void send_messages_to_LCD(uint8_t system_mode, uint8_t *system_old_mode)
 				}
 				queue_var = CALLIBRATION_CMD;
 				xQueueSend(myQueue01Handle, (void* ) &queue_var, 10);
+
+				if (coord_size == 0)
+				{
+					queue_var = ENTER_THE_CORRECT_COORDINATE_CMD;
+					xQueueSend(myQueue01Handle, (void* ) &queue_var, 10);
+				} else
+				{
+					queue_var = SAVE_CMD;
+					xQueueSend(myQueue01Handle, (void* ) &queue_var, 10);
+				}
 			break;
 
 			case MENU:
