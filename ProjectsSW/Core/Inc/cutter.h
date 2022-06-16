@@ -88,7 +88,7 @@
 
 #define EXTRA_COORD 	50		//lracucich tick araj gnalu hamar(tesoghakan dashtic sanr@ hervanum e)
 
-#define DELTA			0		//chshtelu gorcakic
+#define DELTA			5		//chshtelu gorcakic
 
 #define SOFT_LIMIT_UP				1050	//mm
 #define HARD_LIMIT_UP				1056	//mm
