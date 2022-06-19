@@ -88,7 +88,10 @@
 
 #define EXTRA_COORD 	50		//lracucich tick araj gnalu hamar(tesoghakan dashtic sanr@ hervanum e)
 
-#define DELTA			5		//chshtelu gorcakic
+//Parameters are necessary to avoid inertia deviation
+#define DELTA_FORWARD				5
+#define DELTA_BACK					5
+#define DISTANCE_FOR_MID_SPEED		1600
 
 #define SOFT_LIMIT_UP				1050	//mm
 #define HARD_LIMIT_UP				1056	//mm
@@ -125,7 +128,6 @@ typedef enum {
 
 	REAL_CMD,
 	SET_CMD,
-	GO_TO_CMD,
 	SAVE_CMD,
 	REAL_COORD_CMD,
 	SET_COORD_CMD,
@@ -172,6 +174,7 @@ typedef enum {
 
 	BRUSH_MOVING_ENDED = 1,
 	PRESSED_HASH_KEY_TWO_TIME,
+	PRESSED_HASH_KEY,
 	REAL_SET_COORDS_DIFF_LOW,
 	PRESSED_BACK_KEY,
 	COORD_IS_NOT_CHANGED,

@@ -592,6 +592,7 @@ uint8_t Modify_Coord(char *coord_array, double *coord, double coord_pr_val,
 		temp_coord = 0;
 		coord_size = 0;
 		pressed_hash_count = 0;
+
 		return PRESSED_BACK_KEY;
 
 	} else if (key >= '0' && key <= '9') {//add digit to coord array(by shifting right to left)
@@ -689,19 +690,35 @@ uint8_t Modify_Coord(char *coord_array, double *coord, double coord_pr_val,
 						}
 					}
 					coord_size = Get_Coord_Size(coord_array, temp_coord);
+					if (mode == EDIT_SET_COORD)
+					{
+						queue_var = SET_COORD_CMD;
+						xQueueSend(myQueue01Handle, (void* ) &queue_var, 10);
+						queue_var = CURSOR_BLINKING_OFF;
+						xQueueSend(myQueue01Handle, (void* ) &queue_var, 10);
+						HAL_Delay(1200);
+					}
 				}
+
 				if (mode == EDIT_SET_COORD)
 				{
-					queue_var = GO_TO_CMD;
-					xQueueSend(myQueue01Handle, (void* ) &queue_var, 10);
+					*coord = temp_coord;
+					temp_coord = 0;
+					coord_size = 0;
+					pressed_hash_count = 0;
+
+					return PRESSED_HASH_KEY;
+
 				} else
 				{
 					queue_var = SAVE_AND_EXIT_CMD;
 					xQueueSend(myQueue01Handle, (void* ) &queue_var, 10);
+					queue_var = CURSOR_BLINKING_OFF;
+					xQueueSend(myQueue01Handle, (void* ) &queue_var, 10);
 				}
-				queue_var = CURSOR_BLINKING_OFF;
-				xQueueSend(myQueue01Handle, (void* ) &queue_var, 10);
 			}
+
+			//for callibration is needed press # 2 times
 			if (pressed_hash_count == 2) {
 				pressed_hash_count = 0;
 
@@ -1072,7 +1089,7 @@ uint8_t Process_Brush_Moving() {
 			speed = MIN_SPEED;
 			Set_Inverter(FORWARD, speed);
 
-			while (encoder_value > (set_tick + DELTA)) {
+			while (encoder_value > (set_tick + DELTA_BACK)) {
 				Print_Current_Coord();	//print current real coord
 				if (Get_Status(FORWARD) == 1) {
 					break;
@@ -1096,13 +1113,13 @@ uint8_t Process_Brush_Moving() {
 		}
 		Set_Inverter(FORWARD, speed);
 
-		while (encoder_value > (set_tick + DELTA)) {
+		while (encoder_value > (set_tick + DELTA_FORWARD)) {
 			if ((encoder_value <= (set_tick + 100)) && (temp == 1)) {
 				speed = MIN_SPEED;
 				Set_Inverter(FORWARD, speed);
 				temp = 2;
 
-			} else if ((encoder_value <= (set_tick + 1600)) && (temp == 0)) { //motenalu jamanak 1600
+			} else if ((encoder_value <= (set_tick + DISTANCE_FOR_MID_SPEED)) && (temp == 0)) {
 				speed = MID_SPEED;
 				Set_Inverter(FORWARD, speed);
 				temp = 1;
@@ -1661,8 +1678,8 @@ void state_machine()
 			{
 				mode = MANUAL;
 
-			// if pressed # 2 times, moves the brush
-			} else if (ret == PRESSED_HASH_KEY_TWO_TIME)
+			// if pressed #, moves the brush
+			} else if (ret == PRESSED_HASH_KEY)
 			{
 				uint32_t ret = Check_Coord_and_Get_Ticks(set_coord);
 

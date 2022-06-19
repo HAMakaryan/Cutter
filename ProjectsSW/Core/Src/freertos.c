@@ -185,7 +185,7 @@ void StartTask02(void *argument)
 
 			case SET_CMD:
 				LCD_SendCommand(LCD_ADDR, ROW_2+3);
-				LCD_SendString(LCD_ADDR, "#-Save    ");
+				LCD_SendString(LCD_ADDR, "#-Go to   ");
 				LCD_SendCommand(LCD_ADDR, ROW_3+3);
 				LCD_SendString(LCD_ADDR, "*-Del     ");
 				LCD_SendCommand(LCD_ADDR, ROW_4);
@@ -415,13 +415,6 @@ void StartTask02(void *argument)
 				LCD_SendCommand(LCD_ADDR, ROW_4+14);
 				LCD_Write_Coord(coord_D_array);
 				LCD_SendCommand(LCD_ADDR, ROW_4+1);
-			break;
-
-			case GO_TO_CMD:
-				LCD_SendCommand(LCD_ADDR, ROW_2+3);
-				LCD_SendString(LCD_ADDR, "#-Go to   ");
-				LCD_SendCommand(LCD_ADDR, ROW_3+3);
-				LCD_SendString(LCD_ADDR, "*-Edit    ");
 			break;
 
 			case SAVE_AND_EXIT_CMD:
