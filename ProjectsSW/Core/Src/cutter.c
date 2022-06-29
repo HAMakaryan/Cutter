@@ -669,7 +669,7 @@ uint8_t Modify_Coord(char *coord_array, double *coord, double coord_pr_val,
 						temp_coord = LIMIT_DOWN;
 						if (mode == EDIT_SET_COORD)
 						{
-							queue_var = MIN_COORD_CMD;
+							queue_var = SET_COORD_MIN_CMD;
 							xQueueSend(myQueue01Handle, (void* ) &queue_var, 10);
 						} else
 						{
@@ -681,7 +681,7 @@ uint8_t Modify_Coord(char *coord_array, double *coord, double coord_pr_val,
 						temp_coord = SOFT_LIMIT_UP;
 						if (mode == EDIT_SET_COORD)
 						{
-							queue_var = MAX_COORD_CMD;
+							queue_var = SET_COORD_MAX_CMD;
 							xQueueSend(myQueue01Handle, (void* ) &queue_var, 10);
 						} else
 						{
@@ -689,18 +689,22 @@ uint8_t Modify_Coord(char *coord_array, double *coord, double coord_pr_val,
 							xQueueSend(myQueue01Handle, (void* ) &queue_var, 10);
 						}
 					}
-					coord_size = Get_Coord_Size(coord_array, temp_coord);
 					if (mode == EDIT_SET_COORD)
 					{
-						queue_var = SET_COORD_CMD;
-						xQueueSend(myQueue01Handle, (void* ) &queue_var, 10);
 						queue_var = CURSOR_BLINKING_OFF;
 						xQueueSend(myQueue01Handle, (void* ) &queue_var, 10);
 						HAL_Delay(1200);
+						queue_var = CURSOR_BLINKING_ON;
+						xQueueSend(myQueue01Handle, (void* ) &queue_var, 10);
+						queue_var = MIN_MAX_DEL_CMD;
+						xQueueSend(myQueue01Handle, (void* ) &queue_var, 10);
+						pressed_hash_count = 0;
+					} else
+					{
+						coord_size = Get_Coord_Size(coord_array, temp_coord);
 					}
-				}
 
-				if (mode == EDIT_SET_COORD)
+				} else if (mode == EDIT_SET_COORD)
 				{
 					*coord = temp_coord;
 					temp_coord = 0;
@@ -708,8 +712,9 @@ uint8_t Modify_Coord(char *coord_array, double *coord, double coord_pr_val,
 					pressed_hash_count = 0;
 
 					return PRESSED_HASH_KEY;
+				}
 
-				} else
+				if (mode == CALLIBRATION)
 				{
 					queue_var = SAVE_AND_EXIT_CMD;
 					xQueueSend(myQueue01Handle, (void* ) &queue_var, 10);
@@ -1002,7 +1007,7 @@ void Print_Current_Coord() {
 	}
 }
 
-uint8_t Get_Status(uint8_t dir) {
+uint8_t Check_Limit(uint8_t dir) {
 	if ((dir == BACK) && (encoder_value >= HARD_LIMIT_UP_IN_TICK )) {
 		arrange_out = 1;
 		return 1;
@@ -1043,7 +1048,20 @@ void set_debug_pins(uint8_t data) {
 
 uint16_t speed = MIN_SPEED;
 
+char Check_Keypad()
+{
+	if (keypad_timeout == KEYPAD_TIMEOUT)
+	{
+		keypad_timeout = 0;
+		Read_Keypad();
+	}
+	char key = Read_Pressed_Key();
+
+	return key;
+}
+
 uint8_t Process_Brush_Moving() {
+	uint8_t is_pressed_stop = 0;
 	print_real_coord_time = 0;
 	arrange_out = 0;
 
@@ -1079,20 +1097,39 @@ uint8_t Process_Brush_Moving() {
 			}
 
 			Print_Current_Coord();	//print current real coord
-			if (Get_Status(BACK) == 1) {
+
+			// if the coordinate matches SOFT_LIMIT, the software will stop the inverter
+			if (Check_Limit(BACK) == 1)
+			{
 				break;
+			} else
+			{
+				// if pressed '*', the software will break
+				if (Check_Keypad() == '*')
+				{
+					is_pressed_stop = 1;
+					break;
+				}
 			}
 		}
 		Set_Inverter(STOP, 0);
 
-		if (arrange_out == 0) {
+		if ((arrange_out == 0) && (is_pressed_stop == 0)) {
 			speed = MIN_SPEED;
 			Set_Inverter(FORWARD, speed);
 
 			while (encoder_value > (set_tick + DELTA_BACK)) {
 				Print_Current_Coord();	//print current real coord
-				if (Get_Status(FORWARD) == 1) {
+				if (Check_Limit(FORWARD) == 1)
+				{
 					break;
+				} else
+				{
+					if (Check_Keypad() == '*')
+					{
+						is_pressed_stop = 1;
+						break;
+					}
 				}
 			}
 		}
@@ -1126,8 +1163,17 @@ uint8_t Process_Brush_Moving() {
 			}
 
 			Print_Current_Coord();	//print current real coord
-			if (Get_Status(FORWARD) == 1) {
+
+			if (Check_Limit(FORWARD) == 1)
+			{
 				break;
+			} else
+			{
+				if (Check_Keypad() == '*')
+				{
+					is_pressed_stop = 1;
+					break;
+				}
 			}
 		}
 	}
@@ -1140,7 +1186,7 @@ uint8_t Process_Brush_Moving() {
 	//Brush_Lock();
 
 	HAL_DAC_Stop(&hdac, DAC_CHANNEL_1);
-	set_debug_pins(0x00);
+	//set_debug_pins(0x00);
 
 	print_real_coord_time = 0;
 	arrange_out = 0;
@@ -1154,7 +1200,13 @@ uint8_t Process_Brush_Moving() {
 	//Prints real coordinate to LCD
 	Print_Coord(real_coord, REAL);
 
-	return BRUSH_MOVING_ENDED;
+	if (is_pressed_stop == 1)
+	{
+		return STOPPED_BRUSH_MOVING;
+	} else
+	{
+		return BRUSH_MOVING_ENDED;
+	}
 }
 
 uint32_t Process_Brush_Moving_With_Buttons(uint8_t direction, uint8_t mode_from) {
@@ -1188,7 +1240,7 @@ uint32_t Process_Brush_Moving_With_Buttons(uint8_t direction, uint8_t mode_from)
 
 			if (mode_from != CALLIBRATION)
 			{
-				if (Get_Status(FORWARD) == 1) {
+				if (Check_Limit(FORWARD) == 1) {
 					break;
 				}
 			}
@@ -1211,7 +1263,7 @@ uint32_t Process_Brush_Moving_With_Buttons(uint8_t direction, uint8_t mode_from)
 			Print_Current_Coord();	//print current real coord
 			if (mode_from != CALLIBRATION)
 			{
-				if (Get_Status(BACK) == 1) {
+				if (Check_Limit(BACK) == 1) {
 					break;
 				}
 			}
@@ -1707,10 +1759,7 @@ void state_machine()
 			if (HAL_GPIO_ReadPin(Power_In_GPIO_Port, Power_In_Pin) == 1)
 			{
 				ret = Process_Brush_Moving();
-				if (ret == BRUSH_MOVING_ENDED)
-				{
-					mode = MANUAL;
-				}
+				mode = MANUAL;
 			}
 			break;
 		}
@@ -1739,10 +1788,7 @@ void state_machine()
 		case BRUSH_MOVE_WITH_BUTTONS:
 		{
 			ret = Process_Brush_Moving_With_Buttons(direction, mode_from);
-			if (ret == BRUSH_MOVING_ENDED)
-			{
-				mode = mode_from;
-			}
+			mode = mode_from;
 			break;
 		}
 
@@ -2083,10 +2129,17 @@ void state_machine()
 				{
 					queue_var = BRUSH_MOVING_CMD;
 					xQueueSend(myQueue01Handle, (void* ) &queue_var, 10);
-					Process_Brush_Moving();
+					ret = Process_Brush_Moving();
 				}
-				coord_num_for_cursor = curr_coord_num;
-				mode = WAIT_FOR_CUTTING;
+
+				if (ret == STOPPED_BRUSH_MOVING)
+				{
+					mode = AUTO;
+				} else
+				{
+					coord_num_for_cursor = curr_coord_num;
+					mode = WAIT_FOR_CUTTING;
+				}
 			}
 			break;
 		}

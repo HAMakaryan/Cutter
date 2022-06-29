@@ -241,13 +241,15 @@ void StartTask02(void *argument)
 			break;
 
 			case BRUSH_MOVING_CMD:
+				LCD_SendCommand(LCD_ADDR, ROW_3);
+				LCD_SendString(LCD_ADDR, "   *-Stop    ");
 				if (mode != START)
 				{
 					LCD_SendCommand(LCD_ADDR, ROW_4);
 					LCD_SendString(LCD_ADDR, "S       Brush Moving");
 				} else
 				{
-					LCD_SendCommand(LCD_ADDR,ROW_4);
+					LCD_SendCommand(LCD_ADDR, ROW_4);
 					LCD_SendString(LCD_ADDR, "Brush Moving ");
 					set_cursor_for_ABCD();
 				}
@@ -483,27 +485,39 @@ void StartTask02(void *argument)
 
 			case MIN_COORD_CMD:
 				LCD_SendCommand(LCD_ADDR, ROW_4+8);
-				LCD_SendString(LCD_ADDR, "MIN");
+				LCD_SendString(LCD_ADDR, "Min");
 			break;
 
 			case MAX_COORD_CMD:
 				LCD_SendCommand(LCD_ADDR, ROW_4+8);
-				LCD_SendString(LCD_ADDR, "MAX");
+				LCD_SendString(LCD_ADDR, "Max");
 			break;
 
 			case MIN_COORD_CAL_CMD:
 				LCD_SendCommand(LCD_ADDR, ROW_1+8);
-				LCD_SendString(LCD_ADDR, "MIN");
+				LCD_SendString(LCD_ADDR, "Min");
 			break;
 
 			case MAX_COORD_CAL_CMD:
 				LCD_SendCommand(LCD_ADDR, ROW_1+8);
-				LCD_SendString(LCD_ADDR, "MAX");
+				LCD_SendString(LCD_ADDR, "Max");
+			break;
+
+			case SET_COORD_MIN_CMD:
+				LCD_SendCommand(LCD_ADDR, ROW_3+10);
+				LCD_SendString(LCD_ADDR, "Min 95");
+			break;
+
+			case SET_COORD_MAX_CMD:
+				LCD_SendCommand(LCD_ADDR, ROW_3+10);
+				LCD_SendString(LCD_ADDR, "Max 1050");
 			break;
 
 			case MIN_MAX_DEL_CMD:
 				LCD_SendCommand(LCD_ADDR, ROW_1+8);
 				LCD_SendString(LCD_ADDR, "   ");
+				LCD_SendCommand(LCD_ADDR, ROW_3+10);
+				LCD_SendString(LCD_ADDR, "        ");
 				LCD_SendCommand(LCD_ADDR, ROW_4+8);
 				LCD_SendString(LCD_ADDR, "   ");
 			break;
