@@ -693,7 +693,7 @@ uint8_t Modify_Coord(char *coord_array, double *coord, double coord_pr_val,
 					{
 						queue_var = CURSOR_BLINKING_OFF;
 						xQueueSend(myQueue01Handle, (void* ) &queue_var, 10);
-						HAL_Delay(1200);
+						HAL_Delay(MIN_MAX_DISPLAY_TIME);
 						queue_var = CURSOR_BLINKING_ON;
 						xQueueSend(myQueue01Handle, (void* ) &queue_var, 10);
 						queue_var = MIN_MAX_DEL_CMD;
@@ -805,7 +805,7 @@ uint8_t Modify_Coord_Auto(char *coord_array, double *coord, char key)
 				coord_size = Get_Coord_Size(coord_array, temp_coord);
 				queue_var = SET_COORD_CMD;
 				xQueueSend(myQueue01Handle, (void* ) &queue_var, 10);
-				HAL_Delay(1200);
+				HAL_Delay(MIN_MAX_DISPLAY_TIME);
 			}
 			*coord = temp_coord;
 			temp_coord = 0;

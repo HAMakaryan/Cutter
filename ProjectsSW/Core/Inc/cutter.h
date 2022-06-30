@@ -104,6 +104,8 @@
 
 #define BACK_FORWARD_BUTTON_PRESSED_TIME 2000	//2second
 
+#define MIN_MAX_DISPLAY_TIME			 1200
+
 typedef enum {
 	CALLIBRATION,
 	BRUSH_MOVE,
