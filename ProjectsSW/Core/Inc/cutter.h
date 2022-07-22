@@ -82,16 +82,16 @@
 #define	ONE_ROTATION_VAL	(double)11.985	//mm		//11.962 mek ptuyti arjeq@ milimetrov
 #define ONE_ROTATION_TICK	1000						//mek ptuyti depqum tickeri tiv@
 
-#define MAX_SPEED	2420
+#define MAX_SPEED	2500	//2420 er
 #define MID_SPEED	1600
 #define MIN_SPEED   1390	//1410 er
 
 #define EXTRA_COORD 	50		//lracucich tick araj gnalu hamar(tesoghakan dashtic sanr@ hervanum e)
 
 //Parameters are necessary to avoid inertia deviation
-#define DELTA_FORWARD				5
+#define DELTA_FORWARD				6
 #define DELTA_BACK					5
-#define DISTANCE_FOR_MID_SPEED		1600
+#define DISTANCE_FOR_MID_SPEED		2500	//1600 er
 
 #define SOFT_LIMIT_UP				1050	//mm
 #define HARD_LIMIT_UP				1056	//mm
